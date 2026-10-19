@@ -17,6 +17,7 @@ export default defineConfig({
       APPLE_CLIENT_IDS: 'uz.lunex.test',
       GOOGLE_CLIENT_IDS: 'google-test-client',
       TELEGRAM_BOT_TOKEN: '123456:test-token',
+      PUBLIC_URL: 'https://api.lunex.test',
       EMAIL_PROVIDER: 'console',
       // Tests read their own writes right away.
       SYNC_LAG_MS: '0',

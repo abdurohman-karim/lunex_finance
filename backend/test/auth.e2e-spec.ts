@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Redis } from 'ioredis';
@@ -8,6 +8,7 @@ import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { APPLE_JWKS, GOOGLE_JWKS } from '../src/auth/providers/oidc.js';
 import { telegramHash } from '../src/auth/providers/telegram.verifier.js';
+import { TELEGRAM_CALLBACK_SCRIPT_HASH } from '../src/auth/telegram-login.controller.js';
 import { PrismaService } from '../src/database/prisma.service.js';
 import { MailSender, type MailMessage } from '../src/mail/mail-sender.js';
 import { REDIS } from '../src/redis/redis.module.js';
@@ -368,6 +369,42 @@ describe('Auth (e2e)', () => {
         identities: ['telegram'],
         email: null,
       });
+    });
+
+    it('lists the configured sign-in methods', async () => {
+      const res = await http.get('/v1/auth/providers').expect(200);
+      expect(res.body).toEqual({
+        apple: true,
+        google: true,
+        telegram: true,
+        email: true,
+      });
+    });
+
+    it('takes the app through Telegram Login and back', async () => {
+      const start = await http.get('/v1/auth/telegram/start').expect(302);
+      const location = new URL(start.headers.location);
+      expect(`${location.origin}${location.pathname}`).toBe(
+        'https://oauth.telegram.org/auth',
+      );
+      expect(Object.fromEntries(location.searchParams)).toEqual({
+        bot_id: '123456',
+        origin: 'https://api.lunex.test',
+        request_access: 'write',
+        return_to: 'https://api.lunex.test/v1/auth/telegram/callback',
+      });
+
+      const page = await http.get('/v1/auth/telegram/callback').expect(200);
+      expect(page.headers['content-type']).toMatch(/^text\/html/);
+      const script = page.text.match(/<script>(.*)<\/script>/)?.[1] ?? '';
+      expect(script).toContain('lunex://auth/telegram');
+      // The page's CSP allows exactly the script it carries.
+      expect(createHash('sha256').update(script).digest('base64')).toBe(
+        TELEGRAM_CALLBACK_SCRIPT_HASH,
+      );
+      expect(page.headers['content-security-policy']).toBe(
+        `default-src 'none'; script-src 'sha256-${TELEGRAM_CALLBACK_SCRIPT_HASH}'`,
+      );
     });
 
     it('links and unlinks sign-in methods from settings', async () => {

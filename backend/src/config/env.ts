@@ -41,6 +41,11 @@ export const envSchema = z
     GOOGLE_CLIENT_IDS: csvList,
     /** Token of the login-only Telegram bot; Telegram sign-in is off without it */
     TELEGRAM_BOT_TOKEN: z.preprocess(emptyToUndefined, z.string().optional()),
+    /**
+     * Public https origin of this server, e.g. `https://api.lunex.uz`. Telegram redirects back
+     * to it after login, so it must be the domain set for the bot in @BotFather.
+     */
+    PUBLIC_URL: z.preprocess(emptyToUndefined, z.url().optional()),
 
     /** `console` prints login codes to the log and is refused in production */
     EMAIL_PROVIDER: z.enum(['console', 'resend']).default('console'),

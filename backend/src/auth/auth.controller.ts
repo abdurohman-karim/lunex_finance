@@ -1,6 +1,8 @@
-import { Body, Controller, HttpCode, Ip, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Post } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { z } from 'zod';
 import { RateLimiter } from '../common/rate-limiter.service.js';
+import type { Env } from '../config/env.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { UsersService, type SignInResult } from '../users/users.service.js';
 import { Public } from './auth.decorators.js';
@@ -46,7 +48,21 @@ export class AuthController {
     private readonly tokens: TokensService,
     private readonly emailCodes: EmailCodeService,
     private readonly rateLimiter: RateLimiter,
+    private readonly config: ConfigService<Env, true>,
   ) {}
+
+  /** Which sign-in methods this server has configured, so the app does not offer a dead one. */
+  @Get('providers')
+  providers() {
+    const telegramBot = this.config.get('TELEGRAM_BOT_TOKEN', { infer: true });
+    const publicUrl = this.config.get('PUBLIC_URL', { infer: true });
+    return {
+      apple: this.config.get('APPLE_CLIENT_IDS', { infer: true }).length > 0,
+      google: this.config.get('GOOGLE_CLIENT_IDS', { infer: true }).length > 0,
+      telegram: Boolean(telegramBot && publicUrl),
+      email: true,
+    };
+  }
 
   @Post('apple')
   @HttpCode(200)

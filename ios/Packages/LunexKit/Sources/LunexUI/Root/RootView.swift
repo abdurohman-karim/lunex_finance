@@ -1,6 +1,5 @@
 import LunexCore
 import LunexLocalization
-import SwiftData
 import SwiftUI
 
 /// Chooses between the welcome screen and the app by session state.
@@ -16,7 +15,7 @@ public struct RootView: View {
             case .loading:
                 LoadingView()
             case .signedOut:
-                WelcomeView()
+                NavigationStack { WelcomeView() }
             case .signedIn:
                 MainTabView()
             }
@@ -75,9 +74,6 @@ struct MainTabView: View {
 }
 
 #Preview {
-    let environment = AppEnvironment.preview()
     RootView()
-        .environment(environment.session)
-        .environment(environment.localizer)
-        .modelContainer(environment.container)
+        .lunexEnvironment(AppEnvironment.preview())
 }

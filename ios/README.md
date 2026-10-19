@@ -39,4 +39,8 @@ cd ios && xcodebuild -project Lunex.xcodeproj -scheme Lunex \
 - **Language** is the app's own choice (uz / ru / en), independent of the system, and switches instantly: views read strings through `Localizer`. Add strings to `LunexLocalization/Resources/Localizable.xcstrings` in all three languages — a test fails otherwise.
 - **Dates** go to the API as UTC ISO 8601 with exact milliseconds (`LunexJSON`); money as decimal strings into `Decimal`, never `Double`.
 - **Local data**: SwiftData schema `LunexSchemaV1` mirrors accounts, categories, operations, goals and contributions, plus the offline queue (`PendingOperation`) and the sync cursor. New versions go through `LunexMigrationPlan`.
-- Bundle id `uz.lunex.finance` must match the backend's `APPLE_CLIENT_IDS` for Sign in with Apple.
+- **Sign-in** (`LunexUI/Features/Auth`): the welcome screen asks `GET /v1/auth/providers` and does not open a method the server has off.
+  - *Email*: a 6-digit code, sent as soon as all digits are in (typed or filled from Mail). With the backend's `EMAIL_PROVIDER=console` the code is in the server log.
+  - *Apple*: `SignInWithAppleButton` with a nonce; the entitlement comes from `project.yml`. Bundle id `uz.lunex.finance` must be in the backend's `APPLE_CLIENT_IDS`; on a device it needs your Apple team.
+  - *Google*: OAuth with PKCE in `ASWebAuthenticationSession`, no SDK. Set `LUNEX_GOOGLE_CLIENT_ID` in `project.yml` to the iOS OAuth client id and add the same id to the backend's `GOOGLE_CLIENT_IDS`.
+  - *Telegram*: the app opens `/v1/auth/telegram/start`; Telegram returns to the server, which hands the result to `lunex://auth/telegram`. Needs the backend's `TELEGRAM_BOT_TOKEN` and `PUBLIC_URL` (the bot's domain in @BotFather), so it does not work against `localhost`.

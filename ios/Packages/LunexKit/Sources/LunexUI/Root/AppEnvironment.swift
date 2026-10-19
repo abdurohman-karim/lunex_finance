@@ -3,12 +3,14 @@ import LunexCore
 import LunexLocalization
 import OSLog
 import SwiftData
+import SwiftUI
 
 /// Wires the app's long-lived services once: Keychain, API, session, strings, local database.
 @MainActor
 public final class AppEnvironment {
     public let config: AppConfig
     public let session: SessionStore
+    public let signIn: SignInService
     public let localizer: Localizer
     public let container: ModelContainer
     public let deviceId: UUID
@@ -21,6 +23,7 @@ public final class AppEnvironment {
     private init(
         config: AppConfig,
         session: SessionStore,
+        signIn: SignInService,
         localizer: Localizer,
         container: ModelContainer,
         deviceId: UUID,
@@ -28,6 +31,7 @@ public final class AppEnvironment {
     ) {
         self.config = config
         self.session = session
+        self.signIn = signIn
         self.localizer = localizer
         self.container = container
         self.deviceId = deviceId
@@ -54,12 +58,22 @@ public final class AppEnvironment {
         let session = SessionStore(api: api, auth: auth, cache: UserDefaultsProfileCache())
         sessionBox.session = session
 
+        let deviceId = DeviceIdentity.id(in: store)
+        let signIn = SignInService(
+            api: publicAPI,
+            session: session,
+            device: DeviceInfo.current(id: deviceId, appVersion: config.appVersion),
+            telegramStartURL: TelegramLogin.startURL(apiBaseURL: baseURL),
+            google: config.googleClientID.map { GoogleSignIn(clientID: $0, transport: transport) }
+        )
+
         return AppEnvironment(
             config: config,
             session: session,
+            signIn: signIn,
             localizer: Localizer(),
             container: makeContainer(),
-            deviceId: DeviceIdentity.id(in: store),
+            deviceId: deviceId,
             api: api
         )
     }
@@ -72,12 +86,21 @@ public final class AppEnvironment {
             throw APIError(status: 401, code: "preview", message: "Preview")
         })
         let api = APIClient(baseURL: developmentAPI, transport: URLSessionTransport(), session: auth)
+        let session = SessionStore(api: api, auth: auth, cache: UserDefaultsProfileCache(defaults: UserDefaults(suiteName: "preview")!))
+        let deviceId = DeviceIdentity.id(in: store)
         return AppEnvironment(
             config: config,
-            session: SessionStore(api: api, auth: auth, cache: UserDefaultsProfileCache(defaults: UserDefaults(suiteName: "preview")!)),
+            session: session,
+            signIn: SignInService(
+                api: api,
+                session: session,
+                device: DeviceInfo(id: deviceId, model: nil, osVersion: nil, appVersion: "preview"),
+                telegramStartURL: TelegramLogin.startURL(apiBaseURL: developmentAPI),
+                google: nil
+            ),
             localizer: Localizer(defaults: UserDefaults(suiteName: "preview")!),
             container: try! LunexStore.makeContainer(inMemory: true),
-            deviceId: DeviceIdentity.id(in: store),
+            deviceId: deviceId,
             api: api
         )
     }
@@ -90,6 +113,16 @@ public final class AppEnvironment {
             logger.fault("Local store failed to open: \(error.localizedDescription); using memory")
             return try! LunexStore.makeContainer(inMemory: true)
         }
+    }
+}
+
+extension View {
+    /// Puts the app's services where the screens read them.
+    public func lunexEnvironment(_ app: AppEnvironment) -> some View {
+        environment(app.session)
+            .environment(app.signIn)
+            .environment(app.localizer)
+            .modelContainer(app.container)
     }
 }
 

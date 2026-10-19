@@ -57,12 +57,17 @@ targets:
         CFBundleLocalizations: [uz, ru, en]
         LunexAPIBaseURL: $(LUNEX_API_BASE_URL)
         LunexSentryDSN: $(LUNEX_SENTRY_DSN)
+        LunexGoogleClientID: $(LUNEX_GOOGLE_CLIENT_ID)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
         NSAppTransportSecurity:
           # Plain HTTP only to localhost (the development backend); everything else HTTPS.
           NSAllowsLocalNetworking: true
+    entitlements:
+      path: Lunex/Lunex.entitlements
+      properties:
+        com.apple.developer.applesignin: [Default]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: uz.lunex.finance
@@ -71,6 +76,8 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         # Errors go to Sentry only when a DSN is set.
         LUNEX_SENTRY_DSN: ""
+        # Google sign-in: the iOS OAuth client id (also in the backend's GOOGLE_CLIENT_IDS); off when empty.
+        LUNEX_GOOGLE_CLIENT_ID: ""
 
 schemes:
   Lunex:

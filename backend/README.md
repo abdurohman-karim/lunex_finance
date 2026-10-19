@@ -25,9 +25,11 @@ With `EMAIL_PROVIDER=console` the email login code is printed to the server log.
 
 | Endpoint | |
 | --- | --- |
+| `GET /v1/auth/providers` | `{ apple, google, telegram, email }` — which sign-in methods this server has configured |
 | `POST /v1/auth/apple` | `{ identityToken, nonce, displayName?, device, language? }` — `nonce` is the raw value; the token must carry its SHA-256 |
 | `POST /v1/auth/google` | `{ idToken, device, language? }` |
 | `POST /v1/auth/telegram` | `{ authData, device, language? }` — the Telegram Login payload, checked against `TELEGRAM_BOT_TOKEN` |
+| `GET /v1/auth/telegram/start` | the app opens it in `ASWebAuthenticationSession`: redirects to Telegram's login page, which returns to `/v1/auth/telegram/callback`; that page hands `#tgAuthResult=…` to `lunex://auth/telegram`. Needs `TELEGRAM_BOT_TOKEN` and `PUBLIC_URL` (the bot's domain in @BotFather) |
 | `POST /v1/auth/email/start` | `{ email, language? }` → 202; 6-digit code, 10 min, resend after 60 s, 10 per day |
 | `POST /v1/auth/email/verify` | `{ email, code, device, language? }`; 5 wrong attempts lock the code |
 | `POST /v1/auth/refresh` | `{ refreshToken }` → new pair; a reused token revokes every session of that device |

@@ -16,10 +16,11 @@ import {
   GOOGLE_JWKS_URL,
 } from './providers/oidc.js';
 import { TelegramVerifier } from './providers/telegram.verifier.js';
+import { TelegramLoginController } from './telegram-login.controller.js';
 import { TokensService } from './tokens.service.js';
 
 @Module({
-  controllers: [AuthController, MeController],
+  controllers: [AuthController, TelegramLoginController, MeController],
   providers: [
     // Remote key sets are fetched lazily and cached; tests override these tokens with local keys.
     {

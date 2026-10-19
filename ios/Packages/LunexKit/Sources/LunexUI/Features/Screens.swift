@@ -81,6 +81,19 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var localizer = localizer
         Form {
+            if let profile = session.profile {
+                Section(localizer("settings.account")) {
+                    VStack(alignment: .leading, spacing: LunexTheme.Spacing.xs) {
+                        Text(profile.displayName ?? profile.email ?? "—")
+                            .font(.headline)
+                        if profile.displayName != nil, let email = profile.email {
+                            Text(email)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
             Section(localizer("settings.language")) {
                 Picker(localizer("settings.language"), selection: $localizer.language) {
                     ForEach(AppLanguage.allCases) { language in

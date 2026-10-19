@@ -30,10 +30,8 @@ struct LunexApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environment(environment.session)
-                .environment(environment.localizer)
+                .lunexEnvironment(environment)
         }
-        .modelContainer(environment.container)
         .onChange(of: scenePhase) { _, phase in
             // Plan and limits may change on the server (e.g. monetization switched on).
             if phase == .active {

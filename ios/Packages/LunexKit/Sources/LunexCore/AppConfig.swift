@@ -5,11 +5,14 @@ public struct AppConfig: Sendable {
     public let apiBaseURL: URL?
     public let sentryDSN: String?
     public let appVersion: String
+    /// Google iOS OAuth client id; Google sign-in is off without it.
+    public let googleClientID: String?
 
-    public init(apiBaseURL: URL?, sentryDSN: String?, appVersion: String) {
+    public init(apiBaseURL: URL?, sentryDSN: String?, appVersion: String, googleClientID: String? = nil) {
         self.apiBaseURL = apiBaseURL
         self.sentryDSN = sentryDSN
         self.appVersion = appVersion
+        self.googleClientID = googleClientID
     }
 
     public init(bundle: Bundle) {
@@ -24,7 +27,8 @@ public struct AppConfig: Sendable {
         self.init(
             apiBaseURL: value("LunexAPIBaseURL").flatMap(URL.init(string:)),
             sentryDSN: value("LunexSentryDSN"),
-            appVersion: "\(version) (\(build))"
+            appVersion: "\(version) (\(build))",
+            googleClientID: value("LunexGoogleClientID")
         )
     }
 }
