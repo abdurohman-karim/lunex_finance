@@ -1,0 +1,86 @@
+# Xcode project spec. Generate the project with `xcodegen generate` (see README.md);
+# Lunex.xcodeproj itself is not committed.
+name: Lunex
+
+options:
+  bundleIdPrefix: uz.lunex
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Set your Apple team to run on a device; simulator builds need none.
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+  configs:
+    Debug:
+      # The simulator reaches the Mac's localhost: run `backend/` with `npm run start:dev`.
+      LUNEX_API_BASE_URL: "http://localhost:3000/v1"
+    Release:
+      # Set to the production API, e.g. https://api.<domain>/v1, before an App Store build.
+      LUNEX_API_BASE_URL: ""
+
+packages:
+  LunexKit:
+    path: Packages/LunexKit
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    exactVersion: 9.30.2
+
+targets:
+  Lunex:
+    type: application
+    platform: iOS
+    sources:
+      - path: Lunex
+    dependencies:
+      - package: LunexKit
+        product: LunexCore
+      - package: LunexKit
+        product: LunexLocalization
+      - package: LunexKit
+        product: LunexUI
+      - package: Sentry
+        product: Sentry
+    info:
+      path: Lunex/Info.plist
+      properties:
+        CFBundleDisplayName: Lunex
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [uz, ru, en]
+        LunexAPIBaseURL: $(LUNEX_API_BASE_URL)
+        LunexSentryDSN: $(LUNEX_SENTRY_DSN)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+        NSAppTransportSecurity:
+          # Plain HTTP only to localhost (the development backend); everything else HTTPS.
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: uz.lunex.finance
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # Errors go to Sentry only when a DSN is set.
+        LUNEX_SENTRY_DSN: ""
+
+schemes:
+  Lunex:
+    build:
+      targets:
+        Lunex: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - package: LunexKit/LunexCoreTests
+        - package: LunexKit/LunexLocalizationTests
