@@ -265,6 +265,7 @@ Lunex Finance — нативное iOS-приложение для личных 
 - **Настройки** → `user_settings` — безопасность, уведомления, начало месяца и недели, счёт по умолчанию
 - **Счёт** → `accounts` — наличные, карты, сбережения со своей валютой и балансом
 - **Категория** → `categories` — системные и пользовательские категории с иконкой и цветом
+- **Настройка категории** → `category_preferences` — порядок и архив системных категорий у конкретного пользователя
 - **Перевод категории** → `category_translations` — названия системных категорий на uz / ru / en
 - **Операция** → `transactions` — доход, расход или перевод с суммой в базовой валюте и источником ввода
 - **Вложение** → `transaction_attachments` — фото чеков и результат распознавания
@@ -330,6 +331,7 @@ Table exchange_rates {
 
   indexes {
     (base_currency_id, quote_currency_id, rate_date) [unique]
+    quote_currency_id
   }
 }
 
@@ -375,6 +377,10 @@ Table users {
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
   deleted_at timestamptz [note: 'Удаление аккаунта: данные стираются через 30 дней']
+
+  indexes {
+    base_currency_id
+  }
 }
 
 Table auth_identities {
@@ -418,6 +424,10 @@ Table devices {
   last_sync_at timestamptz
   last_seen_at timestamptz
   created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    user_id
+  }
 }
 
 Table refresh_tokens {
@@ -428,6 +438,11 @@ Table refresh_tokens {
   expires_at timestamptz [not null]
   revoked_at timestamptz
   created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    user_id
+    device_id
+  }
 }
 
 Table user_settings {
@@ -449,6 +464,10 @@ Table user_settings {
   quiet_hours_end time [not null, default: '08:00']
   haptics_enabled boolean [not null, default: true]
   updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    default_account_id
+  }
 }
 
 // ---------- Счета, категории, операции ----------
@@ -480,6 +499,7 @@ Table accounts {
 
   indexes {
     (user_id, updated_at)
+    currency_id
   }
 }
 
@@ -501,6 +521,21 @@ Table categories {
   indexes {
     (user_id, type)
     (type, key)
+    parent_id
+  }
+}
+
+Table category_preferences {
+  user_id uuid [not null, ref: > users.id]
+  category_id uuid [not null, ref: > categories.id]
+  sort_order int [not null]
+  is_archived boolean [not null, default: false]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'Порядок и скрытие системных категорий для конкретного пользователя; у своих категорий это поля самих categories'
+
+  indexes {
+    (user_id, category_id) [pk]
   }
 }
 
@@ -556,6 +591,11 @@ Table transactions {
     (user_id, type, occurred_at)
     (user_id, category_id, occurred_at)
     (user_id, updated_at)
+    account_id
+    currency_id
+    category_id
+    transfer_account_id
+    recurring_rule_id
   }
 }
 
@@ -576,6 +616,11 @@ Table transaction_attachments {
   ocr_status ocr_status [not null, default: 'pending']
   ocr_payload jsonb [note: 'Распознанные сумма, дата, магазин, позиции']
   created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    transaction_id
+    user_id
+  }
 }
 
 // ---------- Регулярные платежи ----------
@@ -614,6 +659,9 @@ Table recurring_rules {
   indexes {
     (is_active, next_run_on)
     (user_id, updated_at)
+    account_id
+    category_id
+    currency_id
   }
 }
 
@@ -635,6 +683,7 @@ Table budgets {
 
   indexes {
     (user_id, period_start) [unique]
+    currency_id
   }
 }
 
@@ -647,6 +696,7 @@ Table budget_category_limits {
 
   indexes {
     (budget_id, category_id) [unique]
+    category_id
   }
 }
 
@@ -684,6 +734,8 @@ Table goals {
   indexes {
     (user_id, status, priority)
     (user_id, updated_at)
+    currency_id
+    linked_account_id
   }
 }
 
@@ -710,7 +762,7 @@ Table goal_contributions {
   source_account_id uuid [ref: > accounts.id]
   method contribution_method [not null]
   auto_save_rule_id uuid [ref: > auto_save_rules.id]
-  smart_save_suggestion_id uuid [ref: - smart_save_suggestions.id]
+  smart_save_suggestion_id uuid [unique, ref: - smart_save_suggestions.id]
   note varchar(255)
   created_at timestamptz [not null, default: `now()`]
   deleted_at timestamptz
@@ -718,6 +770,10 @@ Table goal_contributions {
   indexes {
     (goal_id, created_at)
     (user_id, created_at)
+    currency_id
+    source_account_id
+    auto_save_rule_id
+    smart_save_suggestion_id
   }
 }
 
@@ -754,6 +810,12 @@ Table auto_save_rules {
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
   deleted_at timestamptz
+
+  indexes {
+    user_id
+    goal_id
+    source_account_id
+  }
 }
 
 Enum suggestion_status {
@@ -781,6 +843,8 @@ Table smart_save_suggestions {
 
   indexes {
     (user_id, for_date)
+    goal_id
+    currency_id
   }
 }
 
@@ -816,6 +880,8 @@ Table ai_insights {
 
   indexes {
     (user_id, kind, created_at)
+    goal_id
+    transaction_id
   }
 }
 
@@ -826,6 +892,10 @@ Table ai_conversations {
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
   deleted_at timestamptz
+
+  indexes {
+    user_id
+  }
 }
 
 Enum ai_message_role {
@@ -927,6 +997,10 @@ Table store_events {
   processed_at timestamptz
   error text
   created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    subscription_id
+  }
 }
 
 Enum ai_feature {
@@ -957,6 +1031,10 @@ Table app_settings {
   description varchar(255)
   updated_by uuid [ref: > users.id]
   updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    updated_by
+  }
 }
 
 Table admin_audit_log {
@@ -970,6 +1048,7 @@ Table admin_audit_log {
 
   indexes {
     created_at
+    admin_id
   }
 }
 ```
@@ -1005,12 +1084,12 @@ Table admin_audit_log {
 
 1. [x] Подготовка: код Telegram-бота перенесён в `bot_old/` и исключён из продукта
 2. [ ] Основа: дизайн-система (цвета, типографика, компоненты) и макеты ключевых экранов — вход, онбординг, главный, добавление, цели, бюджет, Lunex Pro
-3. [/] Основа: проект NestJS — модули, конфигурация, Prisma, миграции и сиды (валюты, системные категории с переводами uz / ru / en, `app_settings`), Redis + BullMQ, Sentry
-4. [ ] Основа: авторизация в NestJS — Apple, Google, Telegram Login, код на почту, JWT и refresh-токены, связывание аккаунтов, устройства, удаление аккаунта
+3. [x] Основа: проект NestJS — модули, конфигурация, Prisma, миграции и сиды (валюты, системные категории с переводами uz / ru / en, `app_settings`), Redis + BullMQ, Sentry
+4. [x] Основа: авторизация в NestJS — Apple, Google, Telegram Login, код на почту, JWT и refresh-токены, связывание аккаунтов, устройства, удаление аккаунта
 5. [ ] Основа: каркас iOS 18 — навигация TabView, локализация, модели SwiftData, сетевой слой, Keychain, Sentry, загрузка удалённой конфигурации
-6. [ ] Основа: доступ к Pro — триал 30 дней при регистрации, проверка Pro и лимитов Free на сервере; при выключенной монетизации открыто всё
+6. [x] Основа: доступ к Pro — триал 30 дней при регистрации, проверка Pro и лимитов Free на сервере; при выключенной монетизации открыто всё
 7. [ ] MVP: экраны входа (Apple, Google, Telegram, почта) и онбординга, создание счёта «Наличные»
-8. [ ] MVP: счета и категории — CRUD на сервере и в приложении
+8. [/] MVP: счета и категории — CRUD на сервере и в приложении
 9. [ ] MVP: быстрое добавление операции, история с поиском и фильтрами, редактирование и удаление
 10. [ ] MVP: офлайн-очередь и инкрементальная синхронизация на истории изменений SwiftData, индикатор синхронизации
 11. [ ] MVP: расчёт бюджета в авто-режиме и «Можно потратить сегодня», экран бюджета
