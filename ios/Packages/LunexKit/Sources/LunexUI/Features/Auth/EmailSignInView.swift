@@ -23,7 +23,7 @@ struct EmailSignInView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: LunexTheme.Spacing.m) {
+            VStack(alignment: .leading, spacing: LunexTheme.Spacing.space6) {
                 if let sentTo {
                     codeStep(sentTo)
                 } else {
@@ -31,73 +31,97 @@ struct EmailSignInView: View {
                 }
                 if let errorText {
                     Text(errorText)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
+                        .lunexText(.caption)
+                        .foregroundStyle(LunexColor.negative)
                 }
             }
-            .padding(LunexTheme.Spacing.l)
+            .padding(.horizontal, LunexTheme.Spacing.space6)
+            .padding(.top, LunexTheme.Spacing.space2)
         }
-        .navigationTitle(localizer(sentTo == nil ? "auth.email.title" : "auth.code.title"))
+        .scrollDismissesKeyboard(.never)
+        .background(LunexColor.paper)
         .onAppear { focus = sentTo == nil ? .email : .code }
     }
 
+    private func header(_ title: String, _ subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: LunexTheme.Spacing.space2) {
+            Text(title)
+                .lunexText(.titleL)
+                .foregroundStyle(LunexColor.ink)
+            Text(subtitle)
+                .lunexText(.body)
+                .foregroundStyle(LunexColor.inkMuted)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+
     private var emailStep: some View {
-        VStack(alignment: .leading, spacing: LunexTheme.Spacing.m) {
-            Text(localizer("auth.email.subtitle"))
-                .foregroundStyle(.secondary)
-            TextField(localizer("auth.email.placeholder"), text: $email)
-                .emailInput()
-                .focused($focus, equals: .email)
-                .submitLabel(.continue)
-                .onSubmit(requestCode)
-                .inputBackground()
-            Button(action: requestCode) {
-                ZStack {
-                    Text(localizer("auth.email.getCode"))
-                        .opacity(working ? 0 : 1)
-                    if working {
-                        ProgressView()
+        VStack(alignment: .leading, spacing: LunexTheme.Spacing.space6) {
+            header(localizer("auth.email.title"), localizer("auth.email.subtitle"))
+            VStack(spacing: LunexTheme.Spacing.space3) {
+                TextField(localizer("auth.email.placeholder"), text: $email)
+                    .emailInput()
+                    .focused($focus, equals: .email)
+                    .submitLabel(.continue)
+                    .onSubmit(requestCode)
+                    .lunexInput()
+                Button(action: requestCode) {
+                    ZStack {
+                        Text(localizer("auth.email.getCode"))
+                            .opacity(working ? 0 : 1)
+                        if working {
+                            ProgressView().tint(LunexColor.onInk)
+                        }
                     }
                 }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.lunex(.primary))
+                .disabled(working || email.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(working || email.trimmingCharacters(in: .whitespaces).isEmpty)
         }
     }
 
     private func codeStep(_ address: String) -> some View {
-        VStack(alignment: .leading, spacing: LunexTheme.Spacing.m) {
-            Text(localizer.format("auth.code.sentTo", address))
-                .foregroundStyle(.secondary)
-            TextField("000000", text: codeInput(for: address))
-                .oneTimeCodeInput()
-                .font(.system(.title, design: .rounded, weight: .semibold).monospacedDigit())
-                .kerning(8)
-                .multilineTextAlignment(.center)
-                // Stays enabled while the code is checked, so the keyboard does not drop and come back.
-                .focused($focus, equals: .code)
-                .inputBackground()
-            if working {
-                HStack(spacing: LunexTheme.Spacing.s) {
-                    ProgressView()
-                    Text(localizer("auth.signingIn"))
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: LunexTheme.Spacing.space6) {
+            header(localizer("auth.code.title"), localizer.format("auth.code.sentTo", address))
+            VStack(alignment: .leading, spacing: LunexTheme.Spacing.space3) {
+                // The real field (one-time-code autofill, paste, VoiceOver) under the six cells.
+                // It stays enabled while the code is checked, so the keyboard does not drop and come back.
+                ZStack {
+                    TextField("", text: codeInput(for: address))
+                        .oneTimeCodeInput()
+                        .focused($focus, equals: .code)
+                        .foregroundStyle(.clear)
+                        .tint(.clear)
+                        .frame(height: 60)
+                        .accessibilityLabel(localizer("auth.code.title"))
+                    CodeCells(code: code, length: 6, isFocused: focus == .code)
+                        .allowsHitTesting(false)
                 }
-            }
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                let secondsLeft = Int(resendAt.timeIntervalSince(context.date).rounded(.up))
-                if secondsLeft > 0 {
-                    Text(localizer.format(
-                        "auth.code.resendIn",
-                        Duration.seconds(secondsLeft).formatted(.time(pattern: .minuteSecond))
-                    ))
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+                if working {
+                    HStack(spacing: LunexTheme.Spacing.space2) {
+                        ProgressView()
+                        Text(localizer("auth.signingIn"))
+                            .lunexText(.caption)
+                            .foregroundStyle(LunexColor.inkMuted)
+                    }
                 } else {
-                    Button(localizer("auth.code.resend")) { send(to: address) }
-                        .disabled(working)
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        let secondsLeft = Int(resendAt.timeIntervalSince(context.date).rounded(.up))
+                        if secondsLeft > 0 {
+                            Text(localizer.format(
+                                "auth.code.resendIn",
+                                Duration.seconds(secondsLeft).formatted(.time(pattern: .minuteSecond))
+                            ))
+                            .lunexText(.caption)
+                            .foregroundStyle(LunexColor.inkMuted)
+                            .monospacedDigit()
+                        } else {
+                            Button(localizer("auth.code.resend")) { send(to: address) }
+                                .buttonStyle(.lunex(.quiet))
+                                .padding(.leading, -LunexTheme.Spacing.space3)
+                        }
+                    }
                 }
             }
             Button(localizer("auth.code.changeEmail")) {
@@ -106,6 +130,8 @@ struct EmailSignInView: View {
                 errorText = nil
                 focus = .email
             }
+            .buttonStyle(.lunex(.quiet))
+            .padding(.leading, -LunexTheme.Spacing.space3)
             .disabled(working)
         }
     }
@@ -174,11 +200,6 @@ struct EmailSignInView: View {
 }
 
 private extension View {
-    func inputBackground() -> some View {
-        padding(LunexTheme.Spacing.m)
-            .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: LunexTheme.Radius.control))
-    }
-
     /// Email keyboard and autofill, no capitals or autocorrection.
     func emailInput() -> some View {
         #if os(iOS)

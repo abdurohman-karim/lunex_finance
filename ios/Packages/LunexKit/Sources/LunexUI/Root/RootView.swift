@@ -21,6 +21,7 @@ public struct RootView: View {
             }
         }
         .environment(\.locale, localizer.locale)
+        .tint(LunexColor.ink)
         .animation(.default, value: session.state)
         .task { await session.restore() }
     }
@@ -31,16 +32,20 @@ struct LoadingView: View {
     @Environment(Localizer.self) private var localizer
 
     var body: some View {
-        VStack(spacing: LunexTheme.Spacing.m) {
+        VStack(spacing: LunexTheme.Spacing.space4) {
             ProgressView()
-            Text(localizer("common.loading")).foregroundStyle(.secondary)
+            Text(localizer("common.loading"))
+                .lunexText(.callout)
+                .foregroundStyle(LunexColor.inkMuted)
             if session.lastError != nil {
                 Button(localizer("common.retry")) {
                     Task { await session.restore() }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.lunex(.secondary, size: .compact))
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(LunexColor.paper)
     }
 }
 

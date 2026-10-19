@@ -11,7 +11,7 @@ ios/
 └── Packages/LunexKit/       everything else, testable on the Mac with `swift test`
     ├── LunexCore            API client, session & Keychain, money, SwiftData records
     ├── LunexLocalization    uz / ru / en strings (Localizable.xcstrings), runtime language switch
-    └── LunexUI              design tokens, root view, tabs and screens
+    └── LunexUI              design system (Design/), root view, tabs and screens
 ```
 
 ## Run
@@ -33,6 +33,8 @@ cd ios && xcodebuild -project Lunex.xcodeproj -scheme Lunex \
 ```
 
 ## Notes
+
+- **Design**: monochrome UI; colour only in data (rings, bars, charts). Tokens and components live in `LunexUI/Design/` and mirror the «Lunex Finance» design system artifact (https://claude.ai/artifact/Uwry4rx2GgWQjLbdez5hiy); screen mockups: https://claude.ai/artifact/NV8tGNs452WRWgmiZrCCRh. Use `LunexColor.*`, `.lunexText(.style)`, `LunexTheme.Spacing/Radius/Size`, `.buttonStyle(.lunex(.primary))`; no raw colours or system fonts in screens.
 
 - **Configuration** comes from build settings in `project.yml` through Info.plist: `LUNEX_API_BASE_URL` (Release is empty until the production API exists) and `LUNEX_SENTRY_DSN` (Sentry is off without it; reports carry no PII).
 - **Session**: the access token lives in memory, the refresh token and the device id in the Keychain. Concurrent requests share one refresh; a revoked refresh token signs the user out, a failed refresh while offline does not. The last profile is cached so the app opens signed in offline.

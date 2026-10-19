@@ -24,6 +24,7 @@ struct LunexApp: App {
                 #endif
             }
         }
+        LunexAppearance.apply()
         _environment = State(initialValue: AppEnvironment.live(config: config))
     }
 

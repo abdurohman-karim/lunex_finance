@@ -10,24 +10,36 @@ struct HomeView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: LunexTheme.Spacing.m) {
-                if session.lastError?.isOffline == true {
-                    Label(localizer("home.offline"), systemImage: "wifi.slash")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(spacing: LunexTheme.Spacing.space4) {
+                HStack {
+                    SectionLabel(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(localizer.locale)))
+                    Spacer()
+                    if session.lastError?.isOffline == true {
+                        Label(localizer("home.offline"), systemImage: "wifi.slash")
+                            .labelStyle(.iconOnly)
+                            .foregroundStyle(LunexColor.inkMuted)
+                            .accessibilityLabel(localizer("home.offline"))
+                    }
                 }
-                Card {
-                    // Filled by the budget («Можно потратить сегодня») in the home-screen step.
-                    HeadlineAmount(title: localizer("home.safeToSpend"), value: "—")
+                // Filled by the budget («Можно потратить сегодня») in the home-screen step.
+                ProgressRing(progress: 0) {
+                    VStack(spacing: LunexTheme.Spacing.space1) {
+                        SectionLabel(localizer("home.safeToSpend"))
+                            .multilineTextAlignment(.center)
+                        Text("—")
+                            .lunexText(.amountHero)
+                            .foregroundStyle(LunexColor.ink)
+                    }
                 }
+                .frame(width: LunexTheme.Size.ringHero, height: LunexTheme.Size.ringHero)
+                .padding(.top, LunexTheme.Spacing.space4)
             }
-            .padding(LunexTheme.Spacing.m)
+            .padding(.horizontal, LunexTheme.Spacing.space4)
         }
-        .navigationTitle(localizer("tab.home"))
+        .background(LunexColor.paper)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button(localizer("home.addOperation"), systemImage: "plus.circle.fill") {}
+                Button(localizer("home.addOperation"), systemImage: "plus") {}
                     .disabled(true)
             }
         }
@@ -44,6 +56,8 @@ struct TransactionsView: View {
             systemImage: "list.bullet.rectangle",
             description: Text(localizer("empty.transactions.body"))
         )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(LunexColor.paper)
         .navigationTitle(localizer("tab.transactions"))
     }
 }
@@ -57,6 +71,8 @@ struct GoalsView: View {
             systemImage: "target",
             description: Text(localizer("empty.goals.body"))
         )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(LunexColor.paper)
         .navigationTitle(localizer("tab.goals"))
     }
 }
@@ -70,6 +86,8 @@ struct BudgetView: View {
             systemImage: "chart.pie",
             description: Text(localizer("empty.budget.body"))
         )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(LunexColor.paper)
         .navigationTitle(localizer("tab.budget"))
     }
 }
@@ -83,13 +101,13 @@ struct SettingsView: View {
         Form {
             if let profile = session.profile {
                 Section(localizer("settings.account")) {
-                    VStack(alignment: .leading, spacing: LunexTheme.Spacing.xs) {
+                    VStack(alignment: .leading, spacing: LunexTheme.Spacing.space1) {
                         Text(profile.displayName ?? profile.email ?? "—")
-                            .font(.headline)
+                            .lunexText(.bodyStrong)
                         if profile.displayName != nil, let email = profile.email {
                             Text(email)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .lunexText(.callout)
+                                .foregroundStyle(LunexColor.inkMuted)
                         }
                     }
                 }
@@ -105,7 +123,13 @@ struct SettingsView: View {
             }
             if let access = session.access {
                 Section(localizer("settings.plan")) {
-                    Text(localizer(access.isPro ? "settings.plan.pro" : "settings.plan.free"))
+                    HStack {
+                        Text(localizer(access.isPro ? "settings.plan.pro" : "settings.plan.free"))
+                        Spacer()
+                        if access.monetizationEnabled, let trial = access.trial, trial.active {
+                            StatusBadge(localizer.format("settings.plan.trialLeft", trial.daysLeft), isProminent: true)
+                        }
+                    }
                 }
             }
             Section {
@@ -117,6 +141,8 @@ struct SettingsView: View {
                 LabeledContent(localizer("settings.version"), value: Bundle.main.appVersion)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(LunexColor.paper)
         .navigationTitle(localizer("tab.settings"))
     }
 }

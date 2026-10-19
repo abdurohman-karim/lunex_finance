@@ -17,45 +17,55 @@ struct WelcomeView: View {
     @State private var appleNonce: String?
 
     var body: some View {
-        VStack(spacing: LunexTheme.Spacing.l) {
+        VStack(alignment: .leading, spacing: 0) {
             Spacer()
-            Image(systemName: "moon.stars.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.tint)
-            VStack(spacing: LunexTheme.Spacing.s) {
-                Text(localizer("app.name"))
-                    .font(.largeTitle.bold())
-                Text(localizer("app.tagline"))
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+            VStack(alignment: .leading, spacing: LunexTheme.Spacing.space6) {
+                Image(systemName: "moon.stars")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundStyle(LunexColor.ink)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: LunexTheme.Spacing.space3) {
+                    // The wordmark: the display face at its thinnest, one word per line.
+                    Text(localizer("app.name").replacingOccurrences(of: " ", with: "\n"))
+                        .font(.system(size: 44, weight: .light))
+                        .tracking(-0.88)
+                        .foregroundStyle(LunexColor.ink)
+                    Text(localizer("app.tagline"))
+                        .lunexText(.body)
+                        .foregroundStyle(LunexColor.inkMuted)
+                        .frame(maxWidth: 300, alignment: .leading)
+                }
             }
             Spacer()
-            VStack(spacing: LunexTheme.Spacing.s) {
+            VStack(spacing: LunexTheme.Spacing.space3) {
                 appleButton
                 Button(action: signInWithGoogle) {
-                    ProviderLabel(localizer("welcome.signIn.google"), systemImage: "g.circle.fill", working: working == .google)
+                    ProviderLabel(localizer("welcome.signIn.google"), systemImage: "g.circle", working: working == .google)
                 }
                 Button(action: signInWithTelegram) {
-                    ProviderLabel(localizer("welcome.signIn.telegram"), systemImage: "paperplane.fill", working: working == .telegram)
+                    ProviderLabel(localizer("welcome.signIn.telegram"), systemImage: "paperplane", working: working == .telegram)
                 }
                 NavigationLink {
                     EmailSignInView()
                 } label: {
-                    ProviderLabel(localizer("welcome.signIn.email"), systemImage: "envelope.fill", working: false)
+                    ProviderLabel(localizer("welcome.signIn.email"), systemImage: "envelope", working: false)
                 }
                 if let errorText {
                     Text(errorText)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
+                        .lunexText(.caption)
+                        .foregroundStyle(LunexColor.negative)
                         .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
                         .transition(.opacity)
                 }
             }
-            .buttonStyle(ProviderButtonStyle())
+            .buttonStyle(.lunex(.secondary))
             .disabled(working != nil)
         }
-        .padding(LunexTheme.Spacing.l)
+        .padding(.horizontal, LunexTheme.Spacing.space6)
+        .padding(.bottom, LunexTheme.Spacing.space6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(LunexColor.paper)
         .animation(.default, value: errorText)
         .task { await signIn.loadProviders() }
     }
@@ -78,8 +88,8 @@ struct WelcomeView: View {
             }
         }
         .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-        .frame(height: ProviderButtonStyle.height)
-        .clipShape(RoundedRectangle(cornerRadius: LunexTheme.Radius.control))
+        .frame(height: LunexTheme.Size.controlHeight)
+        .clipShape(Capsule())
         .overlay {
             // Apple's button cannot be stopped once tapped; cover it when the server has Apple off.
             if !signIn.isAvailable(.apple) {
@@ -195,30 +205,6 @@ struct ProviderLabel: View {
             if working {
                 ProgressView()
             }
-        }
-    }
-}
-
-/// Full-width buttons matching the height and corners of Apple's sign-in button.
-struct ProviderButtonStyle: ButtonStyle {
-    static let height: CGFloat = 50
-
-    func makeBody(configuration: Configuration) -> some View {
-        StyledBody(configuration: configuration)
-    }
-
-    private struct StyledBody: View {
-        let configuration: Configuration
-        @Environment(\.isEnabled) private var isEnabled
-
-        var body: some View {
-            configuration.label
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, minHeight: ProviderButtonStyle.height)
-                .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: LunexTheme.Radius.control))
-                .contentShape(RoundedRectangle(cornerRadius: LunexTheme.Radius.control))
-                .opacity(configuration.isPressed ? 0.6 : isEnabled ? 1 : 0.5)
         }
     }
 }

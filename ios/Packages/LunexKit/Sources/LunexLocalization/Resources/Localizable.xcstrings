@@ -859,6 +859,28 @@
         }
       }
     },
+    "settings.plan.trialLeft": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro · %lld days left"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro · осталось дней: %lld"
+          }
+        },
+        "uz": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro · %lld kun qoldi"
+          }
+        }
+      }
+    },
     "settings.signOut": {
       "localizations": {
         "en": {
