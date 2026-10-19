@@ -1,5 +1,29 @@
 import SwiftUI
 
+// MARK: - Logo
+
+/// The «Lunex.» wordmark, in `ink` (light on dark). The vector lives in the app's asset
+/// catalog (`LunexLogo`, template rendering); give it a width, the height follows.
+public struct LunexLogo: View {
+    /// The wordmark's own proportions (756 × 208).
+    public static let aspectRatio: CGFloat = 756.0 / 208.0
+
+    private let label: String
+
+    public init(label: String = "Lunex Finance") {
+        self.label = label
+    }
+
+    public var body: some View {
+        Image("LunexLogo", bundle: .main)
+            .renderingMode(.template)
+            .resizable()
+            .aspectRatio(Self.aspectRatio, contentMode: .fit)
+            .foregroundStyle(LunexColor.ink)
+            .accessibilityLabel(label)
+    }
+}
+
 // MARK: - Button
 
 /// Capsule buttons. One `primary` per screen; `secondary` for the rest; `quiet` for

@@ -20,21 +20,13 @@ struct WelcomeView: View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer()
             VStack(alignment: .leading, spacing: LunexTheme.Spacing.space6) {
-                Image(systemName: "moon.stars")
-                    .font(.system(size: 40, weight: .light))
-                    .foregroundStyle(LunexColor.ink)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: LunexTheme.Spacing.space3) {
-                    // The wordmark: the display face at its thinnest, one word per line.
-                    Text(localizer("app.name").replacingOccurrences(of: " ", with: "\n"))
-                        .font(.system(size: 44, weight: .light))
-                        .tracking(-0.88)
-                        .foregroundStyle(LunexColor.ink)
-                    Text(localizer("app.tagline"))
-                        .lunexText(.body)
-                        .foregroundStyle(LunexColor.inkMuted)
-                        .frame(maxWidth: 300, alignment: .leading)
-                }
+                LunexLogo(label: localizer("app.name"))
+                    .frame(width: 200)
+                    .accessibilityAddTraits(.isHeader)
+                Text(localizer("app.tagline"))
+                    .lunexText(.body)
+                    .foregroundStyle(LunexColor.inkMuted)
+                    .frame(maxWidth: 300, alignment: .leading)
             }
             Spacer()
             VStack(spacing: LunexTheme.Spacing.space3) {
@@ -88,6 +80,8 @@ struct WelcomeView: View {
             }
         }
         .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+        // The system button keeps its first style; rebuild it when the theme changes.
+        .id(colorScheme)
         .frame(height: LunexTheme.Size.controlHeight)
         .clipShape(Capsule())
         .overlay {
