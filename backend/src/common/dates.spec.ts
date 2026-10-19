@@ -8,10 +8,18 @@ import {
   clampedDate,
   daysBetween,
   localDate,
+  localHour,
   startOfLocalDay,
 } from './dates.js';
 
 describe('calendar dates', () => {
+  it('reads the wall-clock hour in a time zone', () => {
+    const instant = new Date('2026-10-19T03:30:00Z');
+    expect(localHour(instant, 'Asia/Tashkent')).toBe(8);
+    expect(localHour(instant, 'UTC')).toBe(3);
+    expect(localHour(instant, 'Etc/GMT+5')).toBe(22);
+  });
+
   it('adds days across month and year ends', () => {
     expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
     expect(addDays('2026-03-01', -1)).toBe('2026-02-28');

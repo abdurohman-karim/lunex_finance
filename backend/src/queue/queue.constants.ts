@@ -4,6 +4,8 @@ export const MaintenanceJob = {
   PurgeExpiredEmailCodes: 'purge-expired-email-codes',
   PurgeDeletedAccounts: 'purge-deleted-accounts',
   ExpireSubscriptions: 'expire-subscriptions',
+  /** Hourly: morning suggestions for users at 08:00 local time, and expiry of unanswered ones */
+  SmartSaveHourly: 'smart-save-hourly',
 } as const;
 
 /** Expired email login codes are kept this long for auditing attempts, then deleted. */

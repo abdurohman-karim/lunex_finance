@@ -56,6 +56,13 @@ function zoneOffsetMs(instant: Date, timeZone: string): number {
   return wallClockAsUtc - Math.floor(instant.getTime() / 1000) * 1000;
 }
 
+/** Hour (0–23) on the wall clock of a time zone. */
+export function localHour(instant: Date, timeZone: string): number {
+  return new Date(
+    instant.getTime() + zoneOffsetMs(instant, timeZone),
+  ).getUTCHours();
+}
+
 /** The instant a calendar day starts in a time zone (DST-aware). */
 export function startOfLocalDay(date: CalendarDate, timeZone: string): Date {
   const [year, month, day] = date.split('-').map(Number);

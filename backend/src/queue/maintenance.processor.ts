@@ -3,6 +3,7 @@ import { Logger, OnApplicationBootstrap } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 import { EntitlementsService } from '../billing/entitlements.service.js';
 import { PrismaService } from '../database/prisma.service.js';
+import { SmartSaveService } from '../smart-save/smart-save.service.js';
 import { UsersService } from '../users/users.service.js';
 import {
   EMAIL_CODE_RETENTION_MS,
@@ -22,6 +23,7 @@ export class MaintenanceProcessor
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
     private readonly entitlements: EntitlementsService,
+    private readonly smartSave: SmartSaveService,
   ) {
     super();
   }
@@ -43,6 +45,11 @@ export class MaintenanceProcessor
       { every: 60 * 60 * 1000 },
       { name: MaintenanceJob.ExpireSubscriptions },
     );
+    await this.queue.upsertJobScheduler(
+      MaintenanceJob.SmartSaveHourly,
+      { pattern: '0 * * * *' },
+      { name: MaintenanceJob.SmartSaveHourly },
+    );
   }
 
   async process(job: Job): Promise<unknown> {
@@ -53,6 +60,12 @@ export class MaintenanceProcessor
         return this.users.purgeDeletedAccounts();
       case MaintenanceJob.ExpireSubscriptions:
         return this.entitlements.expireSubscriptions();
+      case MaintenanceJob.SmartSaveHourly: {
+        const now = new Date();
+        const expired = await this.smartSave.expireSuggestions(now);
+        const prepared = await this.smartSave.prepareMorningSuggestions(now);
+        return { ...expired, ...prepared };
+      }
       default:
         throw new Error(`Unknown maintenance job: ${job.name}`);
     }

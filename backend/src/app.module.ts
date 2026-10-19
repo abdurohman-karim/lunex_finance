@@ -15,6 +15,7 @@ import { HealthModule } from './health/health.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { QueueModule } from './queue/queue.module.js';
 import { RedisModule } from './redis/redis.module.js';
+import { SmartSaveModule } from './smart-save/smart-save.module.js';
 import { SyncModule } from './sync/sync.module.js';
 
 @Module({
@@ -58,6 +59,7 @@ import { SyncModule } from './sync/sync.module.js';
     FinanceModule,
     BudgetModule,
     GoalsModule,
+    SmartSaveModule,
     SyncModule,
     QueueModule,
     HealthModule,

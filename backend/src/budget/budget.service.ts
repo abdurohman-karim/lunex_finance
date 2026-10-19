@@ -48,6 +48,21 @@ export interface BudgetSummary {
   incomplete: boolean;
 }
 
+/** The current month as numbers in the base currency. */
+export interface BudgetSnapshot {
+  today: CalendarDate;
+  timezone: string;
+  /** Today included */
+  daysLeft: number;
+  baseCurrency: { id: number; code: string; decimals: number };
+  incomeActual: Decimal;
+  expensesTotal: Decimal;
+  savedToGoals: Decimal;
+  upcomingRecurring: Decimal;
+  safeToSpendToday: Decimal;
+  incomplete: boolean;
+}
+
 /** Daily limit and «Можно потратить сегодня» for the current budget month. */
 @Injectable()
 export class BudgetService {
@@ -57,6 +72,18 @@ export class BudgetService {
   ) {}
 
   async current(userId: string, now = new Date()): Promise<BudgetSummary> {
+    return (await this.evaluate(userId, now)).summary;
+  }
+
+  /** The same month as numbers, for features that build on it (Smart Save). */
+  async snapshot(userId: string, now = new Date()): Promise<BudgetSnapshot> {
+    return (await this.evaluate(userId, now)).snapshot;
+  }
+
+  private async evaluate(
+    userId: string,
+    now: Date,
+  ): Promise<{ summary: BudgetSummary; snapshot: BudgetSnapshot }> {
     const user = await this.prisma.users.findUniqueOrThrow({
       where: { id: userId },
       select: {
@@ -157,7 +184,20 @@ export class BudgetService {
 
     const money = (value: Decimal) => value.toFixed(decimals);
     const expensesTotal = expensesBeforeToday.plus(expensesToday);
-    return {
+    const incomplete = goals.incomplete || recurring.incomplete;
+    const snapshot: BudgetSnapshot = {
+      today,
+      timezone: tz,
+      daysLeft,
+      baseCurrency: { id: baseId, ...user.baseCurrency },
+      incomeActual,
+      expensesTotal,
+      savedToGoals: goals.total,
+      upcomingRecurring: recurring.total,
+      safeToSpendToday: figures.safeToSpendToday,
+      incomplete,
+    };
+    const summary: BudgetSummary = {
       period: {
         start: period.start,
         end: period.end,
@@ -201,8 +241,9 @@ export class BudgetService {
           categoryId: group.categoryId,
           amount: money(group.amount),
         })),
-      incomplete: goals.incomplete || recurring.incomplete,
+      incomplete,
     };
+    return { summary, snapshot };
   }
 
   /** Net goal contributions of the month in the base currency, at each contribution's date. */
