@@ -13,6 +13,8 @@ public final class AppEnvironment {
     public let signIn: SignInService
     public let onboarding: OnboardingService
     public let sync: SyncEngine
+    public let ledger: Ledger
+    public let toasts = ToastCenter()
     public let localizer: Localizer
     public let container: ModelContainer
     public let deviceId: UUID
@@ -38,6 +40,7 @@ public final class AppEnvironment {
         self.signIn = signIn
         self.onboarding = onboarding
         self.sync = sync
+        self.ledger = Ledger(container: container, sync: sync) { session.profile?.baseCurrency ?? "UZS" }
         self.localizer = localizer
         self.container = container
         self.deviceId = deviceId
@@ -139,6 +142,8 @@ extension View {
             .environment(app.signIn)
             .environment(app.onboarding)
             .environment(app.sync)
+            .environment(app.ledger)
+            .environment(app.toasts)
             .environment(app.localizer)
             .modelContainer(app.container)
     }

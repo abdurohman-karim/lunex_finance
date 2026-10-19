@@ -301,21 +301,56 @@ public struct Chip: View {
 
     public var body: some View {
         Button(action: action) {
-            HStack(spacing: LunexTheme.Spacing.space1) {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                }
-                Text(title)
-            }
-            .lunexText(.callout, weight: .medium)
-            .foregroundStyle(isSelected ? LunexColor.onInk : LunexColor.ink)
-            .padding(.horizontal, 14)
-            .frame(minHeight: 36)
-            .background(isSelected ? LunexColor.ink : LunexColor.surface, in: Capsule())
-            .overlay(Capsule().strokeBorder(isSelected ? LunexColor.ink : LunexColor.line, lineWidth: 1))
+            ChipLabel(title, systemImage: systemImage, isSelected: isSelected)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// A chip's look without the button, for menus that open from a chip (filters, account, date).
+struct ChipLabel: View {
+    enum Size {
+        /// 36 pt: categories, filters
+        case regular
+        /// 32 pt: the account and date under the amount
+        case small
+    }
+
+    private let title: String
+    private let systemImage: String?
+    private let trailingImage: String?
+    private let isSelected: Bool
+    private let size: Size
+
+    init(_ title: String, systemImage: String? = nil, trailingImage: String? = nil, isSelected: Bool, size: Size = .regular) {
+        self.title = title
+        self.systemImage = systemImage
+        self.trailingImage = trailingImage
+        self.isSelected = isSelected
+        self.size = size
+    }
+
+    var body: some View {
+        HStack(spacing: LunexTheme.Spacing.space1) {
+            if let systemImage {
+                Image(systemName: systemImage)
+            }
+            Text(title)
+                .lineLimit(1)
+            if let trailingImage {
+                Image(systemName: trailingImage)
+                    .font(.system(size: 10, weight: .semibold))
+                    .opacity(0.6)
+            }
+        }
+        .lunexText(size == .small ? .caption : .callout, weight: .medium)
+        .foregroundStyle(isSelected ? LunexColor.onInk : LunexColor.ink)
+        .padding(.horizontal, size == .small ? LunexTheme.Spacing.space3 : 14)
+        .frame(minHeight: size == .small ? 32 : 36)
+        .background(isSelected ? LunexColor.ink : LunexColor.surface, in: Capsule())
+        .overlay(Capsule().strokeBorder(isSelected ? LunexColor.ink : LunexColor.line, lineWidth: 1))
+        .contentShape(Capsule())
     }
 }
 

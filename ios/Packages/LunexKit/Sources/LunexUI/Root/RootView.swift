@@ -71,6 +71,7 @@ enum AppTab: Hashable {
 
 struct MainTabView: View {
     @Environment(Localizer.self) private var localizer
+    @Environment(ToastCenter.self) private var toasts
     @State private var tab: AppTab = .home
 
     var body: some View {
@@ -91,6 +92,7 @@ struct MainTabView: View {
                 NavigationStack { SettingsView() }
             }
         }
+        .toastHost(toasts)
     }
 }
 

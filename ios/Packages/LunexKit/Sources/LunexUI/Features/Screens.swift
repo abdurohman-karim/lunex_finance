@@ -8,6 +8,7 @@ struct HomeView: View {
     @Environment(SessionStore.self) private var session
     @Environment(SyncEngine.self) private var sync
     @Environment(Localizer.self) private var localizer
+    @State private var editor: TransactionEditor?
 
     var body: some View {
         ScrollView {
@@ -40,29 +41,14 @@ struct HomeView: View {
         .background(LunexColor.paper)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button(localizer("home.addOperation"), systemImage: "plus") {}
-                    .disabled(true)
+                Button(localizer("home.addOperation"), systemImage: "plus") { editor = .new(.expense) }
             }
         }
         .refreshable {
             await sync.sync()
             await session.refreshAccess()
         }
-    }
-}
-
-struct TransactionsView: View {
-    @Environment(Localizer.self) private var localizer
-
-    var body: some View {
-        ContentUnavailableView(
-            localizer("empty.transactions.title"),
-            systemImage: "list.bullet.rectangle",
-            description: Text(localizer("empty.transactions.body"))
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(LunexColor.paper)
-        .navigationTitle(localizer("tab.transactions"))
+        .transactionEditor($editor)
     }
 }
 
