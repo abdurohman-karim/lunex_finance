@@ -10,6 +10,7 @@ import { CommonModule } from './common/common.module.js';
 import { type Env, validateEnv } from './config/env.js';
 import { DatabaseModule } from './database/database.module.js';
 import { FinanceModule } from './finance/finance.module.js';
+import { GoalsModule } from './goals/goals.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { QueueModule } from './queue/queue.module.js';
@@ -56,6 +57,7 @@ import { SyncModule } from './sync/sync.module.js';
     BillingModule,
     FinanceModule,
     BudgetModule,
+    GoalsModule,
     SyncModule,
     QueueModule,
     HealthModule,

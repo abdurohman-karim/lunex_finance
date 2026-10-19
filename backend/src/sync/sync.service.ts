@@ -15,6 +15,11 @@ import {
   type TransactionDto,
   TransactionsService,
 } from '../finance/transactions/transactions.service.js';
+import {
+  type ContributionDto,
+  type GoalDto,
+  GoalsService,
+} from '../goals/goals.service.js';
 import { type Profile, UsersService } from '../users/users.service.js';
 import {
   SYNC_STREAMS,
@@ -35,6 +40,8 @@ export interface PullResult {
   accounts: AccountDto[];
   categories: CategoryDto[];
   transactions: TransactionDto[];
+  goals: GoalDto[];
+  goalContributions: ContributionDto[];
   /** Send it back on the next pull */
   nextCursor: string;
   /** Pull again right away with nextCursor */
@@ -62,6 +69,7 @@ export class SyncService {
     private readonly accounts: AccountsService,
     private readonly categories: CategoriesService,
     private readonly transactions: TransactionsService,
+    private readonly goals: GoalsService,
     config: ConfigService<Env, true>,
   ) {
     this.lagMs = config.get('SYNC_LAG_MS', { infer: true });
@@ -86,23 +94,31 @@ export class SyncService {
     });
     const userId = user.userId;
 
-    const [profile, accounts, categories, preferences, transactions] =
-      await Promise.all([
-        this.profileChanges(userId, window('profile')),
-        this.accounts.changes(userId, window('accounts')),
-        this.categories.changes(userId, window('categories')),
-        this.categories.preferenceChanges(
-          userId,
-          window('categoryPreferences'),
-        ),
-        this.transactions.changes(userId, window('transactions')),
-      ]);
+    const [
+      profile,
+      accounts,
+      categories,
+      preferences,
+      transactions,
+      goals,
+      goalContributions,
+    ] = await Promise.all([
+      this.profileChanges(userId, window('profile')),
+      this.accounts.changes(userId, window('accounts')),
+      this.categories.changes(userId, window('categories')),
+      this.categories.preferenceChanges(userId, window('categoryPreferences')),
+      this.transactions.changes(userId, window('transactions')),
+      this.goals.changes(userId, window('goals')),
+      this.goals.contributionChanges(userId, window('goalContributions')),
+    ]);
     const pages: Record<SyncStream, ChangesPage<unknown>> = {
       profile,
       accounts,
       categories,
       categoryPreferences: preferences,
       transactions,
+      goals,
+      goalContributions,
     };
 
     const next: SyncCursor = {};
@@ -139,6 +155,8 @@ export class SyncService {
       accounts: accounts.items,
       categories: [...categoriesById.values()],
       transactions: transactions.items,
+      goals: goals.items,
+      goalContributions: goalContributions.items,
       nextCursor: encodeSyncCursor(next),
       hasMore,
       serverTime: now,
@@ -223,6 +241,18 @@ export class SyncService {
         return this.transactions.remove(userId, op.id).then(() => null);
       case 'transaction.restore':
         return this.transactions.restore(userId, op.id);
+      case 'goal.create':
+        return this.goals.create(userId, op.data);
+      case 'goal.update':
+        return this.goals.update(userId, op.id, op.data);
+      case 'goal.delete':
+        return this.goals.remove(userId, op.id).then(() => null);
+      case 'goal.reorder':
+        return this.goals.reorder(userId, op.data.ids);
+      case 'goal.contribute':
+        return this.goals.contribute(userId, op.goalId, op.data);
+      case 'goal.contribution.delete':
+        return this.goals.removeContribution(userId, op.goalId, op.id);
     }
   }
 

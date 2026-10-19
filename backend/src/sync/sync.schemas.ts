@@ -12,9 +12,15 @@ import {
   createTransactionSchema,
   updateTransactionSchema,
 } from '../finance/transactions/transactions.schemas.js';
+import {
+  contributionSchema,
+  createGoalSchema,
+  updateGoalSchema,
+} from '../goals/goals.schemas.js';
 
 const opId = z.string().min(1).max(64);
 const id = z.uuid();
+const goalId = z.uuid();
 
 /** One queued change from the app. Every kind is idempotent, so a batch can be resent. */
 export const syncOperationSchema = z.discriminatedUnion('type', [
@@ -57,6 +63,27 @@ export const syncOperationSchema = z.discriminatedUnion('type', [
   }),
   z.object({ opId, type: z.literal('transaction.delete'), id }),
   z.object({ opId, type: z.literal('transaction.restore'), id }),
+  z.object({ opId, type: z.literal('goal.create'), data: createGoalSchema }),
+  z.object({
+    opId,
+    type: z.literal('goal.update'),
+    id,
+    data: updateGoalSchema,
+  }),
+  z.object({ opId, type: z.literal('goal.delete'), id }),
+  z.object({ opId, type: z.literal('goal.reorder'), data: reorderSchema }),
+  z.object({
+    opId,
+    type: z.literal('goal.contribute'),
+    goalId,
+    data: contributionSchema,
+  }),
+  z.object({
+    opId,
+    type: z.literal('goal.contribution.delete'),
+    goalId,
+    id,
+  }),
 ]);
 export type SyncOperation = z.infer<typeof syncOperationSchema>;
 

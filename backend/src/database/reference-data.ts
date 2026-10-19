@@ -226,6 +226,69 @@ export const SYSTEM_CATEGORIES: readonly SystemCategorySeed[] = [
   ...withIds('income', INCOME_CATEGORIES),
 ];
 
+export interface GoalTemplate {
+  key: string;
+  emoji: string;
+  color: string;
+  labels: Record<LanguageCode, string>;
+}
+
+/** Ready-made goals offered in onboarding and on «Новая цель». */
+export const GOAL_TEMPLATES: readonly GoalTemplate[] = [
+  {
+    key: 'phone',
+    emoji: '📱',
+    color: '#0A84FF',
+    labels: { uz: 'Telefon', ru: 'Телефон', en: 'Phone' },
+  },
+  {
+    key: 'car',
+    emoji: '🚗',
+    color: '#FF9F0A',
+    labels: { uz: 'Avtomobil', ru: 'Машина', en: 'Car' },
+  },
+  {
+    key: 'home',
+    emoji: '🏠',
+    color: '#30D158',
+    labels: { uz: 'Uy', ru: 'Дом', en: 'Home' },
+  },
+  {
+    key: 'travel',
+    emoji: '✈️',
+    color: '#64D2FF',
+    labels: { uz: 'Sayohat', ru: 'Путешествие', en: 'Travel' },
+  },
+  {
+    key: 'education',
+    emoji: '🎓',
+    color: '#5E5CE6',
+    labels: { uz: 'Taʼlim', ru: 'Учёба', en: 'Education' },
+  },
+  {
+    key: 'emergency_fund',
+    emoji: '🛟',
+    color: '#FF453A',
+    labels: {
+      uz: 'Favqulodda jamgʻarma',
+      ru: 'Подушка безопасности',
+      en: 'Emergency fund',
+    },
+  },
+  {
+    key: 'wedding',
+    emoji: '💍',
+    color: '#FF6482',
+    labels: { uz: 'Toʻy', ru: 'Свадьба', en: 'Wedding' },
+  },
+  {
+    key: 'gadget',
+    emoji: '💻',
+    color: '#BF5AF2',
+    labels: { uz: 'Gadjet', ru: 'Гаджет', en: 'Gadget' },
+  },
+];
+
 /**
  * Defaults of runtime settings. The seed only inserts missing keys:
  * values changed by an administrator are never overwritten.

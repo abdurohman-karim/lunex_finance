@@ -8,6 +8,8 @@ export const SYNC_STREAMS = [
   'categories',
   'categoryPreferences',
   'transactions',
+  'goals',
+  'goalContributions',
 ] as const;
 export type SyncStream = (typeof SYNC_STREAMS)[number];
 

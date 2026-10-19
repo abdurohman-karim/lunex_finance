@@ -11,6 +11,19 @@ export const moneySchema = z
       .regex(/^-?\d{1,16}(\.\d{1,2})?$/, 'Up to 16 digits and 2 decimals'),
   );
 
+export const positiveMoneySchema = moneySchema.refine(
+  (value) => Number(value) > 0,
+  'Must be greater than zero',
+);
+
+/** Free text where an empty string means "none". */
+export const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .transform((value) => (value === '' ? null : value));
+
 /** SF Symbol name, e.g. `fork.knife` */
 export const sfSymbolSchema = z
   .string()

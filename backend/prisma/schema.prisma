@@ -695,6 +695,8 @@ model GoalContributions {
   smart_save_suggestion_id String?            @unique @db.Uuid
   note                     String?            @db.VarChar(255)
   created_at               DateTime           @default(now())
+  /// Меняется при отмене взноса — по нему синхронизация находит изменения
+  updated_at               DateTime           @default(now()) @updatedAt
   deleted_at               DateTime?
 
   goal                Goals                 @relation(fields: [goal_id], references: [id])
@@ -706,6 +708,7 @@ model GoalContributions {
 
   @@index([goal_id, created_at])
   @@index([user_id, created_at])
+  @@index([user_id, updated_at])
   @@map("goal_contributions")
 }
 
