@@ -1,0 +1,934 @@
+// Lunex Finance database schema.
+// Source of truth: Coddle schema "lunex-finance-db" (https://coddle.uz/studio/synetra/lunex-finance/lunex-finance-db).
+// Exported with db_export(prisma), then adjusted for Prisma 7 (see the comments marked "prisma:").
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum LanguageCode {
+  uz
+  ru
+  en
+
+  @@map("language_code")
+}
+
+enum CategoryType {
+  income
+  expense
+
+  @@map("category_type")
+}
+
+enum AuthProvider {
+  apple
+  google
+  telegram
+  email
+
+  @@map("auth_provider")
+}
+
+enum UserRole {
+  user
+  admin
+
+  @@map("user_role")
+}
+
+enum OnboardingFocus {
+  save
+  track
+  budget
+
+  @@map("onboarding_focus")
+}
+
+enum DevicePlatform {
+  ios
+  ipados
+  watchos
+
+  @@map("device_platform")
+}
+
+enum AccountType {
+  cash
+  card
+  bank
+  savings
+  other
+
+  @@map("account_type")
+}
+
+enum TransactionType {
+  income
+  expense
+  transfer
+
+  @@map("transaction_type")
+}
+
+enum TransactionSource {
+  quick_add
+  voice
+  text_ai
+  receipt_scan
+  recurring
+  siri
+  widget
+
+  @@map("transaction_source")
+}
+
+enum OcrStatus {
+  pending
+  processing
+  done
+  failed
+
+  @@map("ocr_status")
+}
+
+enum RecurrenceFrequency {
+  daily
+  weekly
+  monthly
+  yearly
+
+  @@map("recurrence_frequency")
+}
+
+enum GoalStatus {
+  active
+  paused
+  completed
+  archived
+
+  @@map("goal_status")
+}
+
+enum ContributionType {
+  deposit
+  withdrawal
+
+  @@map("contribution_type")
+}
+
+enum ContributionMethod {
+  manual
+  smart_save
+  auto_save
+  round_up
+
+  @@map("contribution_method")
+}
+
+enum AutoSaveRuleType {
+  fixed_schedule
+  percent_of_income
+  round_up
+
+  @@map("auto_save_rule_type")
+}
+
+enum SuggestionStatus {
+  pending
+  accepted
+  declined
+  expired
+
+  @@map("suggestion_status")
+}
+
+enum InsightKind {
+  daily_tip
+  weekly_report
+  monthly_report
+  spending_analysis
+  goal_analysis
+  anomaly
+  budget_forecast
+
+  @@map("insight_kind")
+}
+
+enum AiMessageRole {
+  user
+  assistant
+
+  @@map("ai_message_role")
+}
+
+enum NotificationType {
+  daily_reminder
+  budget_threshold
+  budget_exceeded
+  goal_milestone
+  goal_deadline
+  recurring_due
+  smart_save
+  auto_save_done
+  weekly_report
+  insight
+
+  @@map("notification_type")
+}
+
+enum SubscriptionSource {
+  trial
+  app_store
+  promo
+
+  @@map("subscription_source")
+}
+
+enum SubscriptionStatus {
+  active
+  grace_period
+  expired
+  revoked
+
+  @@map("subscription_status")
+}
+
+enum AiFeature {
+  assistant
+  parse_input
+  receipt
+  insight
+
+  @@map("ai_feature")
+}
+
+model Currencies {
+  id             Int     @id @default(autoincrement())
+  /// ISO 4217: UZS, USD, EUR, RUB, KZT
+  code           String  @unique @db.Char(3)
+  name           String  @db.VarChar(64)
+  symbol         String  @db.VarChar(8)
+  /// Знаков после запятой при отображении (UZS — 0)
+  decimals       Int     @default(2) @db.SmallInt
+  /// Шаг округления сумм Smart Save и автонакоплений (UZS — 1000)
+  rounding_step  Decimal @default(1) @db.Decimal(18, 2)
+  /// Минимальная сумма Smart Save (UZS — 1000)
+  min_smart_save Decimal @default(1) @db.Decimal(18, 2)
+  is_active      Boolean @default(true)
+  sort_order     Int     @default(0)
+
+  exchangeRates        ExchangeRates[]        @relation("exchange_rates_base_currency_id")
+  exchangeRatesList    ExchangeRates[]        @relation("exchange_rates_quote_currency_id")
+  users                Users[]
+  accounts             Accounts[]
+  transactions         Transactions[]
+  recurringRules       RecurringRules[]
+  budgets              Budgets[]
+  goals                Goals[]
+  goalContributions    GoalContributions[]
+  smartSaveSuggestions SmartSaveSuggestions[]
+
+  @@map("currencies")
+}
+
+model ExchangeRates {
+  id                BigInt   @id @default(autoincrement())
+  base_currency_id  Int
+  quote_currency_id Int
+  /// 1 base = rate quote
+  rate              Decimal  @db.Decimal(20, 10)
+  rate_date         DateTime @db.Date
+  /// cbu — Центральный банк Узбекистана
+  source            String   @default("cbu") @db.VarChar(32)
+  created_at        DateTime @default(now())
+
+  baseCurrency  Currencies @relation(fields: [base_currency_id], references: [id], name: "exchange_rates_base_currency_id")
+  quoteCurrency Currencies @relation(fields: [quote_currency_id], references: [id], name: "exchange_rates_quote_currency_id")
+
+  @@unique([base_currency_id, quote_currency_id, rate_date])
+  @@map("exchange_rates")
+}
+
+model Users {
+  id                      String           @id @default(uuid()) @db.Uuid
+  display_name            String?          @db.VarChar(128)
+  /// Подтверждённая почта; по ней автоматически связываются способы входа
+  email                   String?          @unique @db.VarChar(255)
+  email_verified_at       DateTime?
+  role                    UserRole         @default(user)
+  avatar_key              String?          @db.VarChar(255)
+  language                LanguageCode     @default(uz)
+  /// Все итоги и бюджет считаются в ней
+  base_currency_id        Int
+  timezone                String           @default("Asia/Tashkent") @db.VarChar(64)
+  onboarding_focus        OnboardingFocus?
+  /// Указан в онбординге, используется до первого реального дохода
+  monthly_income_estimate Decimal?         @db.Decimal(18, 2)
+  onboarding_completed_at DateTime?
+  created_at              DateTime         @default(now())
+  updated_at              DateTime         @default(now()) @updatedAt
+  /// Удаление аккаунта: данные стираются через 30 дней
+  deleted_at              DateTime?
+
+  baseCurrency           Currencies               @relation(fields: [base_currency_id], references: [id])
+  authIdentities         AuthIdentities[]
+  devices                Devices[]
+  refreshTokens          RefreshTokens[]
+  userSettings           UserSettings?
+  accounts               Accounts[]
+  categories             Categories[]
+  transactions           Transactions[]
+  transactionAttachments TransactionAttachments[]
+  recurringRules         RecurringRules[]
+  budgets                Budgets[]
+  goals                  Goals[]
+  goalContributions      GoalContributions[]
+  autoSaveRules          AutoSaveRules[]
+  smartSaveSuggestions   SmartSaveSuggestions[]
+  aiInsights             AiInsights[]
+  aiConversations        AiConversations[]
+  notifications          Notifications[]
+  subscriptions          Subscriptions[]
+  aiUsageDaily           AiUsageDaily[]
+  appSettings            AppSettings[]
+  adminAuditLog          AdminAuditLog[]
+
+  @@map("users")
+}
+
+model AuthIdentities {
+  id           BigInt       @id @default(autoincrement())
+  user_id      String       @db.Uuid
+  provider     AuthProvider
+  /// Apple sub, Google sub, Telegram user id или почта
+  subject      String       @db.VarChar(255)
+  email        String?      @db.VarChar(255)
+  created_at   DateTime     @default(now())
+  last_used_at DateTime?
+
+  user Users @relation(fields: [user_id], references: [id])
+
+  @@unique([provider, subject])
+  @@index([user_id])
+  @@map("auth_identities")
+}
+
+model EmailVerifications {
+  id          String    @id @default(uuid()) @db.Uuid
+  email       String    @db.VarChar(255)
+  code_hash   String    @db.VarChar(128)
+  /// Не более 5 попыток
+  attempts    Int       @default(0) @db.SmallInt
+  /// created_at + 10 минут
+  expires_at  DateTime
+  verified_at DateTime?
+  created_at  DateTime  @default(now())
+
+  @@index([email, created_at])
+  @@map("email_verifications")
+}
+
+model Devices {
+  id           String         @id @default(uuid()) @db.Uuid
+  user_id      String         @db.Uuid
+  platform     DevicePlatform @default(ios)
+  model        String?        @db.VarChar(64)
+  os_version   String?        @db.VarChar(32)
+  app_version  String?        @db.VarChar(32)
+  apns_token   String?        @unique @db.VarChar(255)
+  push_enabled Boolean        @default(false)
+  last_sync_at DateTime?
+  last_seen_at DateTime?
+  created_at   DateTime       @default(now())
+
+  user          Users           @relation(fields: [user_id], references: [id])
+  refreshTokens RefreshTokens[]
+
+  @@map("devices")
+}
+
+model RefreshTokens {
+  id         String    @id @default(uuid()) @db.Uuid
+  user_id    String    @db.Uuid
+  device_id  String    @db.Uuid
+  token_hash String    @unique @db.VarChar(128)
+  expires_at DateTime
+  revoked_at DateTime?
+  created_at DateTime  @default(now())
+
+  user   Users   @relation(fields: [user_id], references: [id])
+  device Devices @relation(fields: [device_id], references: [id])
+
+  @@map("refresh_tokens")
+}
+
+model UserSettings {
+  user_id                  String   @id @db.Uuid
+  biometric_lock_enabled   Boolean  @default(false)
+  lock_after_seconds       Int      @default(60)
+  hide_amounts             Boolean  @default(false)
+  /// 1 — понедельник
+  week_starts_on           Int      @default(1) @db.SmallInt
+  /// День зарплаты: с него начинается бюджетный месяц
+  month_starts_on_day      Int      @default(1) @db.SmallInt
+  default_account_id       String?  @db.Uuid
+  daily_reminder_enabled   Boolean  @default(true)
+  daily_reminder_time      DateTime @default(dbgenerated("'21:00:00'::time")) @db.Time()
+  budget_alerts_enabled    Boolean  @default(true)
+  goal_alerts_enabled      Boolean  @default(true)
+  recurring_alerts_enabled Boolean  @default(true)
+  smart_save_enabled       Boolean  @default(true)
+  weekly_report_enabled    Boolean  @default(true)
+  quiet_hours_start        DateTime @default(dbgenerated("'22:00:00'::time")) @db.Time()
+  quiet_hours_end          DateTime @default(dbgenerated("'08:00:00'::time")) @db.Time()
+  haptics_enabled          Boolean  @default(true)
+  updated_at               DateTime @default(now()) @updatedAt
+
+  user           Users     @relation(fields: [user_id], references: [id])
+  defaultAccount Accounts? @relation(fields: [default_account_id], references: [id])
+
+  @@map("user_settings")
+}
+
+model Accounts {
+  id               String      @id @db.Uuid
+  user_id          String      @db.Uuid
+  name             String      @db.VarChar(64)
+  type             AccountType @default(cash)
+  currency_id      Int
+  initial_balance  Decimal     @default(0) @db.Decimal(18, 2)
+  /// Кеш: initial + доходы − расходы ± переводы ± взносы в цели
+  current_balance  Decimal     @default(0) @db.Decimal(18, 2)
+  /// SF Symbol
+  icon             String?     @db.VarChar(64)
+  color            String?     @db.Char(7)
+  include_in_total Boolean     @default(true)
+  is_archived      Boolean     @default(false)
+  sort_order       Int         @default(0)
+  created_at       DateTime    @default(now())
+  updated_at       DateTime    @default(now()) @updatedAt
+  deleted_at       DateTime?
+
+  user              Users               @relation(fields: [user_id], references: [id])
+  currency          Currencies          @relation(fields: [currency_id], references: [id])
+  userSettings      UserSettings[]
+  transactions      Transactions[]      @relation("transactions_account_id")
+  transactionsList  Transactions[]      @relation("transactions_transfer_account_id")
+  recurringRules    RecurringRules[]
+  goals             Goals[]
+  goalContributions GoalContributions[]
+  autoSaveRules     AutoSaveRules[]
+
+  @@index([user_id, updated_at])
+  @@map("accounts")
+}
+
+model Categories {
+  id          String       @id @db.Uuid
+  /// null — системная категория
+  user_id     String?      @db.Uuid
+  /// Один уровень подкатегорий
+  parent_id   String?      @db.Uuid
+  type        CategoryType
+  /// Ключ системной категории: food, transport, market, shopping, subscriptions, fun, health, home, utilities, education, cafe, gifts / salary, transfer, business, sale, gift, freelance, cashback
+  key         String?      @db.VarChar(32)
+  /// Название своей категории; у системных — из category_translations
+  name        String?      @db.VarChar(64)
+  /// SF Symbol
+  icon        String       @db.VarChar(64)
+  color       String       @db.Char(7)
+  sort_order  Int          @default(0)
+  is_archived Boolean      @default(false)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @default(now()) @updatedAt
+  deleted_at  DateTime?
+
+  user                 Users?                 @relation(fields: [user_id], references: [id])
+  // prisma: a self relation needs an explicit name
+  parent               Categories?            @relation("category_parent", fields: [parent_id], references: [id])
+  children             Categories[]           @relation("category_parent")
+  categoryTranslations CategoryTranslations[]
+  transactions         Transactions[]
+  recurringRules       RecurringRules[]
+  budgetCategoryLimits BudgetCategoryLimits[]
+
+  @@index([user_id, type])
+  @@index([type, key])
+  @@map("categories")
+}
+
+model CategoryTranslations {
+  category_id String       @db.Uuid
+  language    LanguageCode
+  label       String       @db.VarChar(64)
+
+  category Categories @relation(fields: [category_id], references: [id])
+
+  @@id([category_id, language])
+  @@map("category_translations")
+}
+
+model Transactions {
+  /// Генерируется на клиенте — офлайн-создание и идемпотентный синк
+  id                  String            @id @db.Uuid
+  user_id             String            @db.Uuid
+  /// Для перевода — счёт списания
+  account_id          String            @db.Uuid
+  type                TransactionType
+  /// Всегда > 0, в валюте счёта; знак задаёт type
+  amount              Decimal           @db.Decimal(18, 2)
+  currency_id         Int
+  /// Сумма в базовой валюте пользователя по курсу на дату операции
+  amount_base         Decimal           @db.Decimal(18, 2)
+  fx_rate             Decimal           @default(1) @db.Decimal(20, 10)
+  /// null для перевода
+  category_id         String?           @db.Uuid
+  /// Счёт зачисления для перевода
+  transfer_account_id String?           @db.Uuid
+  /// Сумма зачисления в валюте второго счёта
+  transfer_amount     Decimal?          @db.Decimal(18, 2)
+  note                String?           @db.VarChar(255)
+  /// Из чека или AI-разбора
+  merchant            String?           @db.VarChar(128)
+  occurred_at         DateTime
+  source              TransactionSource @default(quick_add)
+  recurring_rule_id   String?           @db.Uuid
+  created_at          DateTime          @default(now())
+  updated_at          DateTime          @default(now()) @updatedAt
+  deleted_at          DateTime?
+
+  user                   Users                    @relation(fields: [user_id], references: [id])
+  account                Accounts                 @relation(fields: [account_id], references: [id], name: "transactions_account_id")
+  currency               Currencies               @relation(fields: [currency_id], references: [id])
+  category               Categories?              @relation(fields: [category_id], references: [id])
+  transferAccount        Accounts?                @relation(fields: [transfer_account_id], references: [id], name: "transactions_transfer_account_id")
+  recurringRule          RecurringRules?          @relation(fields: [recurring_rule_id], references: [id])
+  transactionAttachments TransactionAttachments[]
+  aiInsights             AiInsights[]
+
+  @@index([user_id, occurred_at])
+  @@index([user_id, type, occurred_at])
+  @@index([user_id, category_id, occurred_at])
+  @@index([user_id, updated_at])
+  @@map("transactions")
+}
+
+model TransactionAttachments {
+  id             String    @id @db.Uuid
+  transaction_id String    @db.Uuid
+  user_id        String    @db.Uuid
+  storage_key    String    @db.VarChar(255)
+  mime_type      String    @db.VarChar(64)
+  size_bytes     Int
+  ocr_status     OcrStatus @default(pending)
+  /// Распознанные сумма, дата, магазин, позиции
+  ocr_payload    Json?
+  created_at     DateTime  @default(now())
+
+  transaction Transactions @relation(fields: [transaction_id], references: [id])
+  user        Users        @relation(fields: [user_id], references: [id])
+
+  @@map("transaction_attachments")
+}
+
+model RecurringRules {
+  id                 String              @id @db.Uuid
+  user_id            String              @db.Uuid
+  account_id         String              @db.Uuid
+  category_id        String?             @db.Uuid
+  type               CategoryType
+  /// Netflix, Аренда, Зарплата
+  title              String              @db.VarChar(64)
+  amount             Decimal             @db.Decimal(18, 2)
+  currency_id        Int
+  frequency          RecurrenceFrequency
+  /// Каждые N периодов
+  interval           Int                 @default(1) @db.SmallInt
+  /// 31 — последний день месяца
+  day_of_month       Int?                @db.SmallInt
+  weekday            Int?                @db.SmallInt
+  start_on           DateTime            @db.Date
+  end_on             DateTime?           @db.Date
+  next_run_on        DateTime            @db.Date
+  /// true — операция создаётся сама, false — только напоминание
+  auto_create        Boolean             @default(false)
+  remind_days_before Int                 @default(1) @db.SmallInt
+  is_subscription    Boolean             @default(false)
+  is_active          Boolean             @default(true)
+  created_at         DateTime            @default(now())
+  updated_at         DateTime            @default(now()) @updatedAt
+  deleted_at         DateTime?
+
+  user         Users          @relation(fields: [user_id], references: [id])
+  account      Accounts       @relation(fields: [account_id], references: [id])
+  category     Categories?    @relation(fields: [category_id], references: [id])
+  currency     Currencies     @relation(fields: [currency_id], references: [id])
+  transactions Transactions[]
+
+  @@index([is_active, next_run_on])
+  @@index([user_id, updated_at])
+  @@map("recurring_rules")
+}
+
+model Budgets {
+  id               String   @id @db.Uuid
+  user_id          String   @db.Uuid
+  /// Начало бюджетного месяца с учётом month_starts_on_day
+  period_start     DateTime @db.Date
+  period_end       DateTime @db.Date
+  /// Базовая валюта на момент создания
+  currency_id      Int
+  /// null — авто-режим по фактическим доходам
+  planned_income   Decimal? @db.Decimal(18, 2)
+  /// Общий лимит расходов; null — без лимита
+  total_limit      Decimal? @db.Decimal(18, 2)
+  /// Сколько планируется отложить в цели за месяц
+  savings_target   Decimal  @default(0) @db.Decimal(18, 2)
+  rollover_enabled Boolean  @default(false)
+  /// Перенесённый остаток прошлого месяца
+  rollover_amount  Decimal  @default(0) @db.Decimal(18, 2)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @default(now()) @updatedAt
+
+  user                 Users                  @relation(fields: [user_id], references: [id])
+  currency             Currencies             @relation(fields: [currency_id], references: [id])
+  budgetCategoryLimits BudgetCategoryLimits[]
+
+  @@unique([user_id, period_start])
+  @@map("budgets")
+}
+
+model BudgetCategoryLimits {
+  id                  String  @id @db.Uuid
+  budget_id           String  @db.Uuid
+  category_id         String  @db.Uuid
+  limit_amount        Decimal @db.Decimal(18, 2)
+  alert_threshold_pct Int     @default(80) @db.SmallInt
+
+  budget   Budgets    @relation(fields: [budget_id], references: [id])
+  category Categories @relation(fields: [category_id], references: [id])
+
+  @@unique([budget_id, category_id])
+  @@map("budget_category_limits")
+}
+
+model Goals {
+  id                String     @id @db.Uuid
+  user_id           String     @db.Uuid
+  title             String     @db.VarChar(120)
+  emoji             String     @default("🎯") @db.VarChar(8)
+  color             String     @db.Char(7)
+  cover_image_key   String?    @db.VarChar(255)
+  /// phone, car, home, travel, education, emergency_fund, wedding, gadget
+  template_key      String?    @db.VarChar(32)
+  target_amount     Decimal    @db.Decimal(18, 2)
+  /// Кеш: сумма взносов минус снятия
+  saved_amount      Decimal    @default(0) @db.Decimal(18, 2)
+  currency_id       Int
+  deadline          DateTime?  @db.Date
+  status            GoalStatus @default(active)
+  /// Не более одной основной цели на пользователя
+  is_primary        Boolean    @default(false)
+  /// Меньше — выше; меняется перетаскиванием
+  priority          Int        @default(0)
+  /// Счёт-копилка, куда физически откладываются деньги
+  linked_account_id String?    @db.Uuid
+  completed_at      DateTime?
+  archived_at       DateTime?
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @default(now()) @updatedAt
+  deleted_at        DateTime?
+
+  user                 Users                  @relation(fields: [user_id], references: [id])
+  currency             Currencies             @relation(fields: [currency_id], references: [id])
+  linkedAccount        Accounts?              @relation(fields: [linked_account_id], references: [id])
+  goalContributions    GoalContributions[]
+  goalMilestones       GoalMilestones[]
+  autoSaveRules        AutoSaveRules[]
+  smartSaveSuggestions SmartSaveSuggestions[]
+  aiInsights           AiInsights[]
+
+  @@index([user_id, status, priority])
+  @@index([user_id, updated_at])
+  @@map("goals")
+}
+
+model GoalContributions {
+  id                       String             @id @db.Uuid
+  goal_id                  String             @db.Uuid
+  user_id                  String             @db.Uuid
+  type                     ContributionType
+  /// В валюте цели
+  amount                   Decimal            @db.Decimal(18, 2)
+  currency_id              Int
+  /// Списано со счёта в его валюте
+  source_amount            Decimal?           @db.Decimal(18, 2)
+  source_account_id        String?            @db.Uuid
+  method                   ContributionMethod
+  auto_save_rule_id        String?            @db.Uuid
+  // prisma: one contribution per accepted suggestion (1:1 needs a unique column)
+  smart_save_suggestion_id String?            @unique @db.Uuid
+  note                     String?            @db.VarChar(255)
+  created_at               DateTime           @default(now())
+  deleted_at               DateTime?
+
+  goal                Goals                 @relation(fields: [goal_id], references: [id])
+  user                Users                 @relation(fields: [user_id], references: [id])
+  currency            Currencies            @relation(fields: [currency_id], references: [id])
+  sourceAccount       Accounts?             @relation(fields: [source_account_id], references: [id])
+  autoSaveRule        AutoSaveRules?        @relation(fields: [auto_save_rule_id], references: [id])
+  smartSaveSuggestion SmartSaveSuggestions? @relation(fields: [smart_save_suggestion_id], references: [id])
+
+  @@index([goal_id, created_at])
+  @@index([user_id, created_at])
+  @@map("goal_contributions")
+}
+
+model GoalMilestones {
+  goal_id    String   @db.Uuid
+  /// 25, 50, 75, 100
+  percent    Int      @db.SmallInt
+  reached_at DateTime
+
+  goal Goals @relation(fields: [goal_id], references: [id])
+
+  @@id([goal_id, percent])
+  @@map("goal_milestones")
+}
+
+model AutoSaveRules {
+  id                String               @id @db.Uuid
+  user_id           String               @db.Uuid
+  goal_id           String               @db.Uuid
+  type              AutoSaveRuleType
+  /// Для fixed_schedule
+  amount            Decimal?             @db.Decimal(18, 2)
+  /// Для percent_of_income
+  percent           Decimal?             @db.Decimal(5, 2)
+  /// Для round_up: 1000, 5000, 10000
+  round_to          Decimal?             @db.Decimal(18, 2)
+  /// Для fixed_schedule
+  frequency         RecurrenceFrequency?
+  weekday           Int?                 @db.SmallInt
+  day_of_month      Int?                 @db.SmallInt
+  source_account_id String               @db.Uuid
+  next_run_on       DateTime?            @db.Date
+  is_active         Boolean              @default(true)
+  created_at        DateTime             @default(now())
+  updated_at        DateTime             @default(now()) @updatedAt
+  deleted_at        DateTime?
+
+  user              Users               @relation(fields: [user_id], references: [id])
+  goal              Goals               @relation(fields: [goal_id], references: [id])
+  sourceAccount     Accounts            @relation(fields: [source_account_id], references: [id])
+  goalContributions GoalContributions[]
+
+  @@map("auto_save_rules")
+}
+
+model SmartSaveSuggestions {
+  id                  String           @id @default(uuid()) @db.Uuid
+  user_id             String           @db.Uuid
+  goal_id             String           @db.Uuid
+  /// Одно принятое Smart Save в день
+  for_date            DateTime         @db.Date
+  /// Предложенная сумма в валюте цели
+  amount              Decimal          @db.Decimal(18, 2)
+  amount_base         Decimal          @db.Decimal(18, 2)
+  /// Пользователь может уменьшить сумму перед подтверждением
+  accepted_amount     Decimal?         @db.Decimal(18, 2)
+  currency_id         Int
+  safe_to_spend_today Decimal          @db.Decimal(18, 2)
+  /// Входные данные формулы для объяснения «почему такая сумма»
+  calculation         Json
+  status              SuggestionStatus @default(pending)
+  /// Конец дня в часовом поясе пользователя
+  expires_at          DateTime
+  decided_at          DateTime?
+  created_at          DateTime         @default(now())
+
+  user              Users              @relation(fields: [user_id], references: [id])
+  goal              Goals              @relation(fields: [goal_id], references: [id])
+  currency          Currencies         @relation(fields: [currency_id], references: [id])
+  goalContributions GoalContributions?
+
+  @@index([user_id, for_date])
+  @@map("smart_save_suggestions")
+}
+
+model AiInsights {
+  id             String       @id @default(uuid()) @db.Uuid
+  user_id        String       @db.Uuid
+  kind           InsightKind
+  /// Для goal_analysis
+  goal_id        String?      @db.Uuid
+  /// Для anomaly
+  transaction_id String?      @db.Uuid
+  period_start   DateTime?    @db.Date
+  period_end     DateTime?    @db.Date
+  language       LanguageCode
+  title          String       @db.VarChar(160)
+  summary        String?
+  recommendation String?
+  /// 0–100 для goal_analysis
+  score          Int?         @db.SmallInt
+  /// Цифры и данные для графиков
+  payload        Json?
+  model          String?      @db.VarChar(64)
+  read_at        DateTime?
+  created_at     DateTime     @default(now())
+
+  user        Users         @relation(fields: [user_id], references: [id])
+  goal        Goals?        @relation(fields: [goal_id], references: [id])
+  transaction Transactions? @relation(fields: [transaction_id], references: [id])
+
+  @@index([user_id, kind, created_at])
+  @@map("ai_insights")
+}
+
+model AiConversations {
+  id         String    @id @db.Uuid
+  user_id    String    @db.Uuid
+  title      String?   @db.VarChar(160)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @default(now()) @updatedAt
+  deleted_at DateTime?
+
+  user       Users        @relation(fields: [user_id], references: [id])
+  aiMessages AiMessages[]
+
+  @@map("ai_conversations")
+}
+
+model AiMessages {
+  id              String        @id @db.Uuid
+  conversation_id String        @db.Uuid
+  role            AiMessageRole
+  content         String
+  /// Предложенные действия: создать цель, задать лимит — выполняются только после подтверждения
+  actions         Json?
+  input_tokens    Int?
+  output_tokens   Int?
+  created_at      DateTime      @default(now())
+
+  conversation AiConversations @relation(fields: [conversation_id], references: [id])
+
+  @@index([conversation_id, created_at])
+  @@map("ai_messages")
+}
+
+model Notifications {
+  id           String           @id @default(uuid()) @db.Uuid
+  user_id      String           @db.Uuid
+  type         NotificationType
+  title        String           @db.VarChar(160)
+  body         String           @db.VarChar(512)
+  /// Deep link и данные для действий из уведомления
+  payload      Json?
+  /// budget_threshold:{budget}:{category}:80 — одно уведомление на событие
+  dedupe_key   String           @unique @db.VarChar(128)
+  scheduled_at DateTime
+  sent_at      DateTime?
+  opened_at    DateTime?
+  created_at   DateTime         @default(now())
+
+  user Users @relation(fields: [user_id], references: [id])
+
+  @@index([user_id, created_at])
+  @@index([sent_at, scheduled_at])
+  @@map("notifications")
+}
+
+model Subscriptions {
+  id                      String             @id @default(uuid()) @db.Uuid
+  user_id                 String             @db.Uuid
+  source                  SubscriptionSource
+  /// lunex.pro.monthly, lunex.pro.yearly; null для trial и promo
+  product_id              String?            @db.VarChar(64)
+  status                  SubscriptionStatus @default(active)
+  started_at              DateTime
+  expires_at              DateTime
+  auto_renew              Boolean            @default(false)
+  /// App Store original transaction id
+  original_transaction_id String?            @unique @db.VarChar(64)
+  /// Production или Sandbox
+  environment             String?            @db.VarChar(16)
+  created_at              DateTime           @default(now())
+  updated_at              DateTime           @default(now()) @updatedAt
+
+  user        Users         @relation(fields: [user_id], references: [id])
+  storeEvents StoreEvents[]
+
+  @@index([user_id, expires_at])
+  @@map("subscriptions")
+}
+
+model StoreEvents {
+  id                      String    @id @default(uuid()) @db.Uuid
+  /// App Store Server Notifications V2 — защита от повторной обработки
+  notification_uuid       String    @unique @db.VarChar(64)
+  notification_type       String    @db.VarChar(64)
+  subtype                 String?   @db.VarChar(64)
+  original_transaction_id String?   @db.VarChar(64)
+  subscription_id         String?   @db.Uuid
+  signed_payload          String
+  processed_at            DateTime?
+  error                   String?
+  created_at              DateTime  @default(now())
+
+  subscription Subscriptions? @relation(fields: [subscription_id], references: [id])
+
+  @@map("store_events")
+}
+
+model AiUsageDaily {
+  user_id       String    @db.Uuid
+  /// В часовом поясе пользователя
+  usage_date    DateTime  @db.Date
+  feature       AiFeature
+  requests      Int       @default(0)
+  input_tokens  Int       @default(0)
+  output_tokens Int       @default(0)
+
+  user Users @relation(fields: [user_id], references: [id])
+
+  @@id([user_id, usage_date, feature])
+  @@map("ai_usage_daily")
+}
+
+model AppSettings {
+  /// monetization_enabled, trial_days, ai_daily_limit_free, ai_daily_limit_pro, free_max_accounts, free_max_goals, smart_save_share
+  key         String   @id @db.VarChar(64)
+  value       Json
+  description String?  @db.VarChar(255)
+  updated_by  String?  @db.Uuid
+  updated_at  DateTime @default(now()) @updatedAt
+
+  user Users? @relation(fields: [updated_by], references: [id])
+
+  @@map("app_settings")
+}
+
+model AdminAuditLog {
+  id         BigInt   @id @default(autoincrement())
+  admin_id   String   @db.Uuid
+  /// monetization.enable, monetization.disable, setting.update, subscription.grant
+  action     String   @db.VarChar(64)
+  target     String?  @db.VarChar(128)
+  old_value  Json?
+  new_value  Json?
+  created_at DateTime @default(now())
+
+  admin Users @relation(fields: [admin_id], references: [id])
+
+  @@index([created_at])
+  @@map("admin_audit_log")
+}

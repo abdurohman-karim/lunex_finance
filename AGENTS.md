@@ -1,0 +1,1095 @@
+# Lunex Finance — AGENTS.md
+
+> The product spec and data schema of this project, exported from Coddle Studio (https://coddle.uz/studio/synetra/lunex-finance/lunex-finance-spec). Coddle is the source of truth: read the spec there before a step, tick plan steps and acceptance criteria there as they are done, and export this file again.
+
+## Product
+
+Lunex Finance — нативное iOS-приложение для личных финансов, написанное с нуля на смену Telegram-боту Lunex (бот полностью выключается). На главном экране сразу видно, сколько можно спокойно потратить сегодня. Операция записывается за 2–3 касания, голосом или по фото чека. Деньги откладываются в цели сами: Smart Save, автонакопления и округление расходов. AI-ассистент объясняет, куда уходят деньги, и подсказывает следующий шаг. Приложение работает офлайн, поддерживает узбекский, русский и английский языки, несколько счетов и валют, виджеты и Siri.
+
+**Stack:** iOS 18+, Swift 6, SwiftUI, SwiftData, Swift Charts, WidgetKit, App Intents, StoreKit 2, VisionKit, Speech; бэкенд NestJS (TypeScript), Prisma, PostgreSQL, Redis + BullMQ; Claude API; APNs
+
+## Users and roles
+
+- **Гость** — видит приветствие и входит через Apple, Google, Telegram или по коду на почту.
+- **Пользователь** — ведёт счета, операции, бюджет, цели, автонакопления и регулярные платежи; пользуется Smart Save, аналитикой, AI-ассистентом, виджетами и Siri; получает 30 дней Lunex Pro при регистрации; управляет подпиской, настройками, экспортом и удалением аккаунта.
+- **Администратор** — через веб-панель ведёт справочники валют и системных категорий и параметры приложения, одной кнопкой с подтверждением включает монетизацию, выдаёт промо-доступ Pro, смотрит метрики, фоновые задачи и расход AI.
+- **Система** — фоновые задачи сервера: курсы валют, регулярные платежи, автонакопления, ежедневные предложения Smart Save, AI-отчёты, push-уведомления, истечение триалов и подписок, обработка уведомлений App Store, очистка удалённых аккаунтов.
+
+## Features and acceptance criteria
+
+### Вход и аккаунт
+Быстрый вход без паролей через соцсети или почту и единый аккаунт на всех устройствах.
+- [ ] Sign in with Apple — одним касанием
+- [ ] Вход через Google (OAuth 2.0 / OpenID Connect); бэкенд проверяет ID-токен
+- [ ] Вход через Telegram (Telegram Login) в ASWebAuthenticationSession; бэкенд проверяет подпись данных токеном бота-авторизатора, у которого нет никакой логики, кроме входа
+- [ ] Вход по почте одноразовым кодом: 6 цифр, действует 10 минут, не больше 5 попыток, повторная отправка через 60 секунд
+- [ ] Если провайдер вернул подтверждённую почту, которая уже есть у аккаунта, способ входа привязывается к нему автоматически; в настройках способы входа можно привязать и отвязать вручную (последний отвязать нельзя)
+- [ ] Сессия — access-токен на 15 минут и refresh-токен на 60 дней в Keychain; refresh-токен обновляется при каждом использовании
+- [ ] В настройках есть «Выйти на всех устройствах» и «Удалить аккаунт» (требование App Store): данные стираются через 30 дней, до этого вход восстанавливает аккаунт
+
+### Онбординг
+Настройка меньше чем за минуту, каждый шаг можно пропустить.
+- [ ] Шаги: язык (по умолчанию системный) → базовая валюта → фокус («Копить на цель», «Контролировать расходы», «Жить по бюджету») → примерный доход в месяц → первая цель по шаблону → разрешение на уведомления с объяснением пользы
+- [ ] Шаблоны целей: телефон, машина, дом, путешествие, учёба, подушка безопасности, свадьба, гаджет — с готовыми emoji и цветом
+- [ ] Автоматически создаётся счёт «Наличные» в базовой валюте
+- [ ] После онбординга на главном экране висит чек-лист «Первые шаги»: первая операция, цель, бюджет, виджет; он исчезает, когда всё выполнено (заменяет адаптивное меню бота)
+
+### Главный экран
+Вся картина дня на одном экране, без меню и навигации.
+- [ ] Главная цифра — «Можно потратить сегодня» с кольцом прогресса; цвет меняется при перерасходе
+- [ ] Блоки: общий баланс по счетам, траты месяца против плана, карточка основной цели с прогрессом, карточка Smart Save, ближайшие регулярные платежи, последние 5 операций
+- [ ] Большая кнопка «+» открывает быстрое добавление; долгое нажатие — голосовой ввод
+- [ ] Обновление жестом pull-to-refresh, данные из локальной базы показываются мгновенно
+- [ ] Жест или кнопка «глаз» скрывает все суммы (режим приватности)
+
+### Быстрое добавление операции
+Запись расхода за 2–3 касания вместо пятишагового мастера бота.
+- [ ] Нижняя шторка с собственной цифровой клавиатурой и простыми вычислениями (+ − ×)
+- [ ] Переключатель «Расход / Доход / Перевод»; по умолчанию «Расход»
+- [ ] Сетка категорий, где первыми идут недавние и частые; счёт по умолчанию из настроек; дата «Сегодня / Вчера / календарь»; заметка необязательна
+- [ ] Сохранение одним касанием, тактильный отклик, тост «Отменить» на 5 секунд
+- [ ] Работает без сети: операция сохраняется локально и синхронизируется позже
+- [ ] После сохранения «Можно потратить сегодня» пересчитывается мгновенно
+
+### Голосовой и текстовый ввод
+Операция записывается фразой: «кофе 25 тысяч», «зарплата 8 млн вчера», «taksi 30 ming».
+- [ ] Речь распознаётся на устройстве (Speech framework) на uz / ru / en
+- [ ] AI-разбор фразы возвращает тип, сумму, категорию, дату, заметку и уверенность
+- [ ] Перед сохранением показывается заполненная карточка; любое поле можно поправить
+- [ ] Одна фраза может содержать несколько операций («обед 40 000 и такси 15 000»)
+
+### Сканирование чека
+- [ ] Чек снимается камерой (VisionKit) или выбирается из фото
+- [ ] Сумма, дата и магазин распознаются на устройстве, а при низкой уверенности — на сервере
+- [ ] Фото прикрепляется к операции и открывается из её карточки
+
+### История операций
+Полный контроль над записями — в боте операции нельзя было изменить или удалить.
+- [ ] Список сгруппирован по дням с итогом каждого дня, подгружается при прокрутке
+- [ ] Поиск по заметке, магазину, категории и сумме
+- [ ] Фильтры по типу, счёту, категории и периоду; фильтры можно комбинировать
+- [ ] Свайп по строке — изменить или удалить; удаление можно отменить
+- [ ] Карточка операции: все поля, вложения, источник (вручную, голос, чек, регулярная), редактирование
+
+### Счета и переводы
+- [ ] Счета: наличные, карта, банк, сбережения, другое; у каждого своя валюта, начальный баланс, иконка и цвет
+- [ ] Перевод между счетами не считается ни расходом, ни доходом; при разных валютах подставляется курс дня, его можно изменить
+- [ ] Общий баланс считается в базовой валюте по текущему курсу; счёт можно исключить из общего баланса
+- [ ] Счёт можно архивировать — история сохраняется
+
+### Категории
+- [ ] Системные категории расходов: еда, транспорт, супермаркет, покупки, подписки, развлечения, здоровье, жильё, коммунальные услуги, образование, кафе, подарки
+- [ ] Системные категории доходов: зарплата, перевод, бизнес, продажа, подарок, фриланс, кешбэк
+- [ ] Свои категории с иконкой из SF Symbols и цветом, один уровень подкатегорий
+- [ ] Порядок меняется перетаскиванием; категорию можно архивировать, а не удалять
+
+### Валюты и курсы
+- [ ] Базовая валюта задаётся в онбординге и меняется в настройках
+- [ ] Курсы ЦБ Узбекистана загружаются раз в день; операция хранит сумму в базовой валюте по курсу на дату операции
+- [ ] Итоги, бюджет и аналитика считаются в базовой валюте; цель хранится в своей валюте
+
+### Месячный бюджет
+Бюджет работает сразу без настройки, как в боте, а при желании настраивается подробно.
+- [ ] Авто-режим без настройки: дневной лимит считается по фактическим доходам месяца (или по доходу из онбординга)
+- [ ] Мастер настройки: план дохода, общий лимит, цель накоплений на месяц, лимиты по категориям; лимиты предлагаются по средним тратам за последние 3 месяца
+- [ ] Бюджетный месяц начинается с дня зарплаты (`month_starts_on_day`)
+- [ ] Экран бюджета: план против факта, прогресс-бары по категориям, «Можно потратить сегодня», прогноз на конец месяца
+- [ ] Остаток можно перенести на следующий месяц (rollover)
+- [ ] Уведомления при 80 % и 100 % лимита категории и общего лимита — по одному на событие
+
+### Регулярные платежи и подписки
+- [ ] Правило: название, сумма, категория, счёт, частота (день / неделя / месяц / год, каждые N), дата начала и окончания
+- [ ] Режимы: создавать операцию автоматически или только напоминать за N дней
+- [ ] Экран подписок: список, сумма в месяц и в год, ближайшие списания
+- [ ] Предстоящие платежи до конца месяца учитываются в дневном лимите
+- [ ] Приложение распознаёт повторяющиеся траты и предлагает сделать их регулярными
+
+### Цели накоплений
+- [ ] Создание: название, emoji, цвет, обложка, сумма, валюта, дедлайн (+30 / +90 / +180 / +365 дней, календарь или без срока), счёт-копилка
+- [ ] Расчёт нужного взноса в день, неделю и месяц до дедлайна и статус «В графике / Отстаёт / Опережает»
+- [ ] Пополнение и снятие со счёта; история всех взносов с источником (вручную, Smart Save, автонакопление, округление)
+- [ ] Одна основная цель; первая созданная цель становится основной автоматически
+- [ ] Приоритет меняется перетаскиванием в списке
+- [ ] Цель можно поставить на паузу, завершить и архивировать или вернуть в работу
+- [ ] Этапы 25 / 50 / 75 / 100 % отмечаются анимацией и уведомлением — один раз на этап
+- [ ] При достижении суммы цель становится «Достигнута» с праздничным экраном и предложением выбрать следующую цель
+
+### Автонакопления
+Деньги откладываются сами по правилам пользователя.
+- [ ] Фиксированная сумма по расписанию (каждый день, неделю или месяц)
+- [ ] Процент от каждого дохода
+- [ ] Округление каждого расхода до 1 000 / 5 000 / 10 000 сум, разница уходит в цель
+- [ ] Правила выполняются на сервере; если на счёте не хватает денег, взнос пропускается, а пользователь получает уведомление
+- [ ] О каждом выполнении приходит тихое уведомление, взнос виден в истории цели
+
+### Smart Save
+Развитие Smart Save из бота: ежедневное предложение, которое принимается одним касанием.
+- [ ] Каждое утро сервер рассчитывает безопасную сумму и показывает её карточкой на главном экране и push-уведомлением
+- [ ] Карточка объясняет, почему сумма именно такая: доход, траты, предстоящие платежи, оставшиеся дни
+- [ ] Варианты: «Отложить», «Изменить сумму» (слайдер, только в меньшую сторону) и «Не сегодня»; принять можно прямо из уведомления
+- [ ] Принятие не чаще одного раза в день; при подтверждении сервер пересчитывает сумму, и если она уменьшилась — показывает новую
+- [ ] Понятные состояния: нет цели, нет свободных денег, сумма слишком мала, уже отложено сегодня, цель достигнута
+- [ ] Для цели в другой валюте сумма пересчитывается по курсу дня и показывается в обеих валютах
+
+### Аналитика
+Интерактивные графики на Swift Charts.
+- [ ] Расходы по категориям (кольцевая диаграмма); касание сегмента открывает операции этой категории
+- [ ] Динамика расходов и доходов по дням, неделям и месяцам с выбором периода
+- [ ] Сравнение с прошлым периодом в процентах по каждой категории
+- [ ] Календарь трат: интенсивность по дням
+- [ ] Прогресс всех целей и общая сумма накоплений по валютам
+
+### AI-инсайты и отчёты
+- [ ] Совет дня на главном экране
+- [ ] Еженедельный отчёт по воскресеньям и месячный отчёт — с цифрами, графиком и одной рекомендацией
+- [ ] Анализ цели: краткий вывод, рекомендация и оценка 0–100
+- [ ] Поиск аномалий: трата больше трёх медиан категории за 90 дней
+- [ ] Прогноз бюджета: уложится ли пользователь в лимит к концу месяца
+- [ ] Лента инсайтов с отметкой «прочитано»; всё на языке пользователя
+
+### AI-ассистент
+Чат, который отвечает на вопросы по данным пользователя.
+- [ ] Отвечает на вопросы вроде «Сколько я потратил на кафе в сентябре?» и «Когда я накоплю на машину?» по реальным данным
+- [ ] Ответы содержат цифры и мини-графики; предложенные действия (создать цель, задать лимит, создать регулярный платёж) выполняются только после подтверждения
+- [ ] Дневной лимит сообщений: 5 в Free, 50 в Pro (настраивается в админке); в чате виден счётчик «осталось N»
+- [ ] При сбое AI показывается понятное сообщение и кнопка «Повторить»; неудачный запрос не списывается с лимита
+- [ ] История диалогов сохраняется, её можно удалить
+
+### Уведомления
+- [ ] Вечернее напоминание записать траты в выбранное время; не приходит, если сегодня уже есть операции
+- [ ] Бюджет 80 % и 100 %, этапы цели, дедлайн цели через 7 дней, регулярный платёж, Smart Save, выполненное автонакопление, еженедельный отчёт
+- [ ] Каждый тип включается и выключается отдельно; в тихие часы (22:00–08:00) уведомления не приходят; не больше 3 уведомлений в день, кроме тех, что пользователь запросил сам
+- [ ] Уведомления с действиями: «Отложить» для Smart Save, «Записать» для регулярного платежа; касание открывает нужный экран
+
+### Виджеты, Siri и быстрые действия
+- [ ] Виджеты на домашнем экране: «Можно потратить сегодня», прогресс цели, кнопки быстрого добавления (интерактивные виджеты)
+- [ ] Виджеты на экране блокировки: дневной лимит и прогресс основной цели
+- [ ] App Intents и Siri: «Добавь расход 30 000 на такси в Lunex», «Сколько я могу потратить сегодня?»; действия доступны в Shortcuts
+- [ ] Быстрые действия на иконке приложения: расход, доход, скан чека
+- [ ] Кнопка быстрого добавления в Пункте управления и на кнопке «Действие»
+
+### Офлайн и синхронизация
+- [ ] Все данные лежат в локальной базе SwiftData, и любое действие работает без сети
+- [ ] Изменения ставятся в очередь и отправляются при появлении сети; ID записей генерируются на клиенте, поэтому повторная отправка безопасна
+- [ ] Синхронизация инкрементальная по `updated_at`, удаления передаются через `deleted_at`; конфликты решаются по последней записи
+- [ ] Индикатор «Не синхронизировано» и время последней синхронизации видны в настройках
+- [ ] Данные одинаковы на всех iPhone одного аккаунта; локальные изменения отслеживаются через историю SwiftData
+
+### Безопасность и приватность
+- [ ] Блокировка через Face ID / Touch ID / код-пароль при запуске и после N секунд в фоне
+- [ ] Размытие содержимого в переключателе приложений
+- [ ] Режим скрытых сумм
+- [ ] Токены хранятся в Keychain, обмен идёт только по TLS, почта и токены маскируются в логах
+- [ ] Экспорт всех своих данных и удаление аккаунта из настроек
+
+### Экспорт
+- [ ] Экспорт операций за период в CSV и PDF-отчёт с графиками через Share Sheet
+
+### Настройки и персонализация
+- [ ] Язык приложения uz / ru / en независимо от языка системы, применяется сразу
+- [ ] Базовая валюта, счёт по умолчанию, день начала месяца, первый день недели
+- [ ] Тема (системная, светлая, тёмная), тактильная отдача
+- [ ] Управление категориями, счетами, регулярными платежами, автонакоплениями и уведомлениями
+
+### Lunex Pro и пробный период
+Платная подписка готова в коде, но включается позже одной кнопкой; до этого все функции бесплатны.
+- [ ] При первой регистрации пользователь получает 30 дней Lunex Pro (`trial_days`); новый способ входа или повторный вход триал не продлевает
+- [ ] Пока монетизация выключена (`monetization_enabled = false`), Pro-функции доступны всем, экран покупки и счётчик триала скрыты
+- [ ] Флаг монетизации и лимиты приложение получает с сервера при запуске и при возврате из фона, поэтому включение не требует обновления приложения
+- [ ] После включения: экран Lunex Pro с месячной и годовой подпиской (StoreKit 2), «Восстановить покупки», бейдж «Pro · осталось N дней» во время триала
+- [ ] Сервер проверяет покупки через App Store Server API и обрабатывает App Store Server Notifications V2 (продление, отмена, возврат, grace period); одно событие не обрабатывается дважды
+- [ ] По окончании Pro данные не удаляются: записи сверх лимитов Free остаются доступны для чтения, создать новые сверх лимита нельзя
+- [ ] Free: операции, до 2 счетов, до 3 активных целей, авто-бюджет, Smart Save, регулярные платежи, аналитика за текущий и прошлый месяц, совет дня, виджеты, 5 сообщений AI-ассистенту в день
+- [ ] Pro: счета и цели без ограничений, лимиты по категориям и перенос остатка, автонакопления, голосовой ввод и скан чеков, AI-отчёты и анализ целей, 50 сообщений AI-ассистенту в день, аналитика за любой период, экспорт CSV / PDF
+
+### Качество интерфейса и доступность
+- [ ] Dynamic Type, VoiceOver, достаточный контраст, тёмная тема на всех экранах
+- [ ] Пустые состояния с понятным действием, skeleton-загрузка, плавные анимации переходов
+- [ ] Корректная вёрстка от iPhone SE до Pro Max
+- [ ] Холодный старт до 1 секунды, главный экран читается из локальной базы без ожидания сети
+
+### Администрирование
+- [ ] Вход в веб-панель только для пользователей с ролью `admin` через те же способы входа
+- [ ] Справочники: валюты, системные категории и их переводы, параметры Smart Save (доля, минимум, шаг округления)
+- [ ] Параметры приложения: длительность триала, лимиты Free и Pro, дневные лимиты AI
+- [ ] Монетизация включается одной кнопкой «Включить Lunex Pro»; в окне подтверждения видно, что изменится и сколько пользователей перейдут на Free; выключается так же
+- [ ] Выдача промо-доступа Pro пользователю на N дней
+- [ ] Каждое действие администратора записывается в журнал: кто, когда, что было и что стало
+- [ ] Мониторинг: фоновые задачи, ошибки AI, расход токенов по дням и функциям, подписки и триалы
+
+## Screens
+
+- `/welcome` — приветствие и кнопки входа: Apple, Google, Telegram, почта (Гость)
+- `/auth/email` — ввод почты и одноразового кода (Гость)
+- `/onboarding` — язык, валюта, фокус, доход, первая цель, уведомления (Пользователь)
+- `/lock` — разблокировка Face ID / кодом (Пользователь)
+- `/home` — главный экран: можно потратить сегодня, баланс, цель, Smart Save, последние операции (Пользователь)
+- `/add` — шторка быстрого добавления операции (Пользователь)
+- `/add/voice` — голосовой и текстовый ввод с AI-разбором (Пользователь)
+- `/add/scan` — сканирование чека (Пользователь)
+- `/transactions` — история с поиском и фильтрами (Пользователь)
+- `/transactions/:id` — карточка и редактирование операции (Пользователь)
+- `/accounts` — счета и общий баланс (Пользователь)
+- `/accounts/:id` — счёт, его операции, перевод (Пользователь)
+- `/budget` — бюджет месяца: план против факта, категории, прогноз (Пользователь)
+- `/budget/setup` — мастер настройки бюджета и лимитов (Пользователь)
+- `/recurring` — регулярные платежи и подписки (Пользователь)
+- `/goals` — список целей с перетаскиванием приоритета (Пользователь)
+- `/goals/new` — создание цели по шаблону (Пользователь)
+- `/goals/:id` — цель: прогресс, график взносов, история, действия (Пользователь)
+- `/goals/:id/contribute` — пополнение или снятие (Пользователь)
+- `/goals/:id/auto-save` — правила автонакоплений (Пользователь)
+- `/smart-save` — предложение Smart Save с объяснением (Пользователь)
+- `/analytics` — графики и сравнение периодов (Пользователь)
+- `/insights` — лента AI-инсайтов и отчётов (Пользователь)
+- `/assistant` — чат с AI-ассистентом (Пользователь)
+- `/notifications` — центр уведомлений (Пользователь)
+- `/settings` — язык, валюта, тема, синхронизация (Пользователь)
+- `/settings/categories` — управление категориями (Пользователь)
+- `/settings/notifications` — типы уведомлений, время напоминания, тихие часы (Пользователь)
+- `/settings/security` — Face ID, автоблокировка, скрытие сумм (Пользователь)
+- `/settings/export` — экспорт CSV / PDF (Пользователь)
+- `/settings/account` — привязка способов входа, статус Pro, выход, удаление аккаунта (Пользователь)
+- `/pro` — экран Lunex Pro: сравнение Free и Pro, покупка, восстановление; скрыт до включения монетизации (Пользователь)
+- `/admin` — веб-панель: справочники, параметры, кнопка монетизации, промо-доступ, журнал, мониторинг (Администратор)
+
+## Data
+
+- **Валюта** → `currencies` — код ISO, символ, точность, шаг округления и минимум Smart Save
+- **Курс валюты** → `exchange_rates` — ежедневные курсы ЦБ Узбекистана
+- **Пользователь** → `users` — профиль, почта, роль, язык, базовая валюта, часовой пояс, фокус и статус онбординга
+- **Способ входа** → `auth_identities` — Apple, Google, Telegram или почта
+- **Код входа по почте** → `email_verifications` — одноразовые коды с ограничением попыток и срока
+- **Устройство** → `devices` — iPhone пользователя, APNs-токен, время синхронизации
+- **Refresh-токен** → `refresh_tokens` — сессии по устройствам
+- **Настройки** → `user_settings` — безопасность, уведомления, начало месяца и недели, счёт по умолчанию
+- **Счёт** → `accounts` — наличные, карты, сбережения со своей валютой и балансом
+- **Категория** → `categories` — системные и пользовательские категории с иконкой и цветом
+- **Перевод категории** → `category_translations` — названия системных категорий на uz / ru / en
+- **Операция** → `transactions` — доход, расход или перевод с суммой в базовой валюте и источником ввода
+- **Вложение** → `transaction_attachments` — фото чеков и результат распознавания
+- **Регулярный платёж** → `recurring_rules` — подписки, аренда, зарплата с расписанием
+- **Бюджет** → `budgets` — бюджетный месяц: план дохода, общий лимит, цель накоплений, перенос остатка
+- **Лимит категории** → `budget_category_limits` — лимиты по категориям с порогом уведомления
+- **Цель** → `goals` — цель накоплений с валютой, дедлайном, статусом, приоритетом и счётом-копилкой
+- **Взнос в цель** → `goal_contributions` — пополнения и снятия с источником
+- **Этап цели** → `goal_milestones` — достигнутые 25 / 50 / 75 / 100 %
+- **Правило автонакопления** → `auto_save_rules` — фиксированная сумма, процент от дохода, округление
+- **Предложение Smart Save** → `smart_save_suggestions` — ежедневная безопасная сумма с расчётом и решением пользователя
+- **AI-инсайт** → `ai_insights` — советы, отчёты, анализ целей, аномалии, прогнозы
+- **Диалог с ассистентом** → `ai_conversations` — чаты пользователя с AI
+- **Сообщение ассистента** → `ai_messages` — реплики и предложенные действия
+- **Уведомление** → `notifications` — запланированные и отправленные push с защитой от дублей
+- **Подписка** → `subscriptions` — триал, покупки App Store и промо-доступ Lunex Pro
+- **Событие App Store** → `store_events` — уведомления App Store Server Notifications V2
+- **Расход AI** → `ai_usage_daily` — запросы и токены по дням и функциям для лимитов
+- **Параметр приложения** → `app_settings` — флаг монетизации, длительность триала, лимиты Free / Pro и AI
+- **Журнал администратора** → `admin_audit_log` — действия администраторов со значениями до и после
+
+### Schema: lunex-finance-db (https://coddle.uz/studio/synetra/lunex-finance/lunex-finance-db)
+
+```dbml
+Project lunex_finance {
+  database_type: 'PostgreSQL'
+  Note: 'Lunex Finance — iOS-приложение личных финансов. Клиент офлайн-first (SwiftData), сервер — источник правды и синхронизация по updated_at / deleted_at. Идентификаторы пользовательских данных — UUID, генерируются на клиенте.'
+}
+
+// ---------- Справочники ----------
+
+Enum language_code {
+  uz
+  ru
+  en
+}
+
+Enum category_type {
+  income
+  expense
+}
+
+Table currencies {
+  id int [pk, increment]
+  code char(3) [not null, unique, note: 'ISO 4217: UZS, USD, EUR, RUB, KZT']
+  name varchar(64) [not null]
+  symbol varchar(8) [not null]
+  decimals smallint [not null, default: 2, note: 'Знаков после запятой при отображении (UZS — 0)']
+  rounding_step numeric(18,2) [not null, default: 1, note: 'Шаг округления сумм Smart Save и автонакоплений (UZS — 1000)']
+  min_smart_save numeric(18,2) [not null, default: 1, note: 'Минимальная сумма Smart Save (UZS — 1000)']
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table exchange_rates {
+  id bigint [pk, increment]
+  base_currency_id int [not null, ref: > currencies.id]
+  quote_currency_id int [not null, ref: > currencies.id]
+  rate numeric(20,10) [not null, note: '1 base = rate quote']
+  rate_date date [not null]
+  source varchar(32) [not null, default: 'cbu', note: 'cbu — Центральный банк Узбекистана']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (base_currency_id, quote_currency_id, rate_date) [unique]
+  }
+}
+
+// ---------- Пользователи, вход, устройства ----------
+
+Enum auth_provider {
+  apple
+  google
+  telegram [note: 'Telegram Login (OAuth), subject — Telegram user id']
+  email [note: 'Одноразовый код на почту']
+}
+
+Enum user_role {
+  user
+  admin
+}
+
+Enum onboarding_focus {
+  save [note: 'Копить на цель']
+  track [note: 'Контролировать расходы']
+  budget [note: 'Жить по бюджету']
+}
+
+Enum device_platform {
+  ios
+  ipados [note: 'Следующие релизы']
+  watchos [note: 'Следующие релизы']
+}
+
+Table users {
+  id uuid [pk, default: `gen_random_uuid()`]
+  display_name varchar(128)
+  email varchar(255) [unique, note: 'Подтверждённая почта; по ней автоматически связываются способы входа']
+  email_verified_at timestamptz
+  role user_role [not null, default: 'user']
+  avatar_key varchar(255)
+  language language_code [not null, default: 'uz']
+  base_currency_id int [not null, ref: > currencies.id, note: 'Все итоги и бюджет считаются в ней']
+  timezone varchar(64) [not null, default: 'Asia/Tashkent']
+  onboarding_focus onboarding_focus
+  monthly_income_estimate numeric(18,2) [note: 'Указан в онбординге, используется до первого реального дохода']
+  onboarding_completed_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz [note: 'Удаление аккаунта: данные стираются через 30 дней']
+}
+
+Table auth_identities {
+  id bigint [pk, increment]
+  user_id uuid [not null, ref: > users.id]
+  provider auth_provider [not null]
+  subject varchar(255) [not null, note: 'Apple sub, Google sub, Telegram user id или почта']
+  email varchar(255)
+  created_at timestamptz [not null, default: `now()`]
+  last_used_at timestamptz
+
+  indexes {
+    (provider, subject) [unique]
+    user_id
+  }
+}
+
+Table email_verifications {
+  id uuid [pk, default: `gen_random_uuid()`]
+  email varchar(255) [not null]
+  code_hash varchar(128) [not null]
+  attempts smallint [not null, default: 0, note: 'Не более 5 попыток']
+  expires_at timestamptz [not null, note: 'created_at + 10 минут']
+  verified_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (email, created_at)
+  }
+}
+
+Table devices {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, ref: > users.id]
+  platform device_platform [not null, default: 'ios']
+  model varchar(64)
+  os_version varchar(32)
+  app_version varchar(32)
+  apns_token varchar(255) [unique]
+  push_enabled boolean [not null, default: false]
+  last_sync_at timestamptz
+  last_seen_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table refresh_tokens {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, ref: > users.id]
+  device_id uuid [not null, ref: > devices.id]
+  token_hash varchar(128) [not null, unique]
+  expires_at timestamptz [not null]
+  revoked_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table user_settings {
+  user_id uuid [pk, ref: - users.id]
+  biometric_lock_enabled boolean [not null, default: false]
+  lock_after_seconds int [not null, default: 60]
+  hide_amounts boolean [not null, default: false]
+  week_starts_on smallint [not null, default: 1, note: '1 — понедельник']
+  month_starts_on_day smallint [not null, default: 1, note: 'День зарплаты: с него начинается бюджетный месяц']
+  default_account_id uuid [ref: > accounts.id]
+  daily_reminder_enabled boolean [not null, default: true]
+  daily_reminder_time time [not null, default: '21:00']
+  budget_alerts_enabled boolean [not null, default: true]
+  goal_alerts_enabled boolean [not null, default: true]
+  recurring_alerts_enabled boolean [not null, default: true]
+  smart_save_enabled boolean [not null, default: true]
+  weekly_report_enabled boolean [not null, default: true]
+  quiet_hours_start time [not null, default: '22:00']
+  quiet_hours_end time [not null, default: '08:00']
+  haptics_enabled boolean [not null, default: true]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+// ---------- Счета, категории, операции ----------
+
+Enum account_type {
+  cash
+  card
+  bank
+  savings
+  other
+}
+
+Table accounts {
+  id uuid [pk]
+  user_id uuid [not null, ref: > users.id]
+  name varchar(64) [not null]
+  type account_type [not null, default: 'cash']
+  currency_id int [not null, ref: > currencies.id]
+  initial_balance numeric(18,2) [not null, default: 0]
+  current_balance numeric(18,2) [not null, default: 0, note: 'Кеш: initial + доходы − расходы ± переводы ± взносы в цели']
+  icon varchar(64) [note: 'SF Symbol']
+  color char(7)
+  include_in_total boolean [not null, default: true]
+  is_archived boolean [not null, default: false]
+  sort_order int [not null, default: 0]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+
+  indexes {
+    (user_id, updated_at)
+  }
+}
+
+Table categories {
+  id uuid [pk]
+  user_id uuid [ref: > users.id, note: 'null — системная категория']
+  parent_id uuid [ref: > categories.id, note: 'Один уровень подкатегорий']
+  type category_type [not null]
+  key varchar(32) [note: 'Ключ системной категории: food, transport, market, shopping, subscriptions, fun, health, home, utilities, education, cafe, gifts / salary, transfer, business, sale, gift, freelance, cashback']
+  name varchar(64) [note: 'Название своей категории; у системных — из category_translations']
+  icon varchar(64) [not null, note: 'SF Symbol']
+  color char(7) [not null]
+  sort_order int [not null, default: 0]
+  is_archived boolean [not null, default: false]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+
+  indexes {
+    (user_id, type)
+    (type, key)
+  }
+}
+
+Table category_translations {
+  category_id uuid [not null, ref: > categories.id]
+  language language_code [not null]
+  label varchar(64) [not null]
+
+  indexes {
+    (category_id, language) [pk]
+  }
+}
+
+Enum transaction_type {
+  income
+  expense
+  transfer
+}
+
+Enum transaction_source {
+  quick_add
+  voice
+  text_ai
+  receipt_scan
+  recurring
+  siri
+  widget
+}
+
+Table transactions {
+  id uuid [pk, note: 'Генерируется на клиенте — офлайн-создание и идемпотентный синк']
+  user_id uuid [not null, ref: > users.id]
+  account_id uuid [not null, ref: > accounts.id, note: 'Для перевода — счёт списания']
+  type transaction_type [not null]
+  amount numeric(18,2) [not null, note: 'Всегда > 0, в валюте счёта; знак задаёт type']
+  currency_id int [not null, ref: > currencies.id]
+  amount_base numeric(18,2) [not null, note: 'Сумма в базовой валюте пользователя по курсу на дату операции']
+  fx_rate numeric(20,10) [not null, default: 1]
+  category_id uuid [ref: > categories.id, note: 'null для перевода']
+  transfer_account_id uuid [ref: > accounts.id, note: 'Счёт зачисления для перевода']
+  transfer_amount numeric(18,2) [note: 'Сумма зачисления в валюте второго счёта']
+  note varchar(255)
+  merchant varchar(128) [note: 'Из чека или AI-разбора']
+  occurred_at timestamptz [not null]
+  source transaction_source [not null, default: 'quick_add']
+  recurring_rule_id uuid [ref: > recurring_rules.id]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+
+  indexes {
+    (user_id, occurred_at)
+    (user_id, type, occurred_at)
+    (user_id, category_id, occurred_at)
+    (user_id, updated_at)
+  }
+}
+
+Enum ocr_status {
+  pending
+  processing
+  done
+  failed
+}
+
+Table transaction_attachments {
+  id uuid [pk]
+  transaction_id uuid [not null, ref: > transactions.id]
+  user_id uuid [not null, ref: > users.id]
+  storage_key varchar(255) [not null]
+  mime_type varchar(64) [not null]
+  size_bytes int [not null]
+  ocr_status ocr_status [not null, default: 'pending']
+  ocr_payload jsonb [note: 'Распознанные сумма, дата, магазин, позиции']
+  created_at timestamptz [not null, default: `now()`]
+}
+
+// ---------- Регулярные платежи ----------
+
+Enum recurrence_frequency {
+  daily
+  weekly
+  monthly
+  yearly
+}
+
+Table recurring_rules {
+  id uuid [pk]
+  user_id uuid [not null, ref: > users.id]
+  account_id uuid [not null, ref: > accounts.id]
+  category_id uuid [ref: > categories.id]
+  type category_type [not null]
+  title varchar(64) [not null, note: 'Netflix, Аренда, Зарплата']
+  amount numeric(18,2) [not null]
+  currency_id int [not null, ref: > currencies.id]
+  frequency recurrence_frequency [not null]
+  interval smallint [not null, default: 1, note: 'Каждые N периодов']
+  day_of_month smallint [note: '31 — последний день месяца']
+  weekday smallint
+  start_on date [not null]
+  end_on date
+  next_run_on date [not null]
+  auto_create boolean [not null, default: false, note: 'true — операция создаётся сама, false — только напоминание']
+  remind_days_before smallint [not null, default: 1]
+  is_subscription boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+
+  indexes {
+    (is_active, next_run_on)
+    (user_id, updated_at)
+  }
+}
+
+// ---------- Бюджет ----------
+
+Table budgets {
+  id uuid [pk]
+  user_id uuid [not null, ref: > users.id]
+  period_start date [not null, note: 'Начало бюджетного месяца с учётом month_starts_on_day']
+  period_end date [not null]
+  currency_id int [not null, ref: > currencies.id, note: 'Базовая валюта на момент создания']
+  planned_income numeric(18,2) [note: 'null — авто-режим по фактическим доходам']
+  total_limit numeric(18,2) [note: 'Общий лимит расходов; null — без лимита']
+  savings_target numeric(18,2) [not null, default: 0, note: 'Сколько планируется отложить в цели за месяц']
+  rollover_enabled boolean [not null, default: false]
+  rollover_amount numeric(18,2) [not null, default: 0, note: 'Перенесённый остаток прошлого месяца']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, period_start) [unique]
+  }
+}
+
+Table budget_category_limits {
+  id uuid [pk]
+  budget_id uuid [not null, ref: > budgets.id]
+  category_id uuid [not null, ref: > categories.id]
+  limit_amount numeric(18,2) [not null]
+  alert_threshold_pct smallint [not null, default: 80]
+
+  indexes {
+    (budget_id, category_id) [unique]
+  }
+}
+
+// ---------- Цели и накопления ----------
+
+Enum goal_status {
+  active
+  paused
+  completed
+  archived
+}
+
+Table goals {
+  id uuid [pk]
+  user_id uuid [not null, ref: > users.id]
+  title varchar(120) [not null]
+  emoji varchar(8) [not null, default: '🎯']
+  color char(7) [not null]
+  cover_image_key varchar(255)
+  template_key varchar(32) [note: 'phone, car, home, travel, education, emergency_fund, wedding, gadget']
+  target_amount numeric(18,2) [not null]
+  saved_amount numeric(18,2) [not null, default: 0, note: 'Кеш: сумма взносов минус снятия']
+  currency_id int [not null, ref: > currencies.id]
+  deadline date
+  status goal_status [not null, default: 'active']
+  is_primary boolean [not null, default: false, note: 'Не более одной основной цели на пользователя']
+  priority int [not null, default: 0, note: 'Меньше — выше; меняется перетаскиванием']
+  linked_account_id uuid [ref: > accounts.id, note: 'Счёт-копилка, куда физически откладываются деньги']
+  completed_at timestamptz
+  archived_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+
+  indexes {
+    (user_id, status, priority)
+    (user_id, updated_at)
+  }
+}
+
+Enum contribution_type {
+  deposit
+  withdrawal
+}
+
+Enum contribution_method {
+  manual
+  smart_save
+  auto_save
+  round_up
+}
+
+Table goal_contributions {
+  id uuid [pk]
+  goal_id uuid [not null, ref: > goals.id]
+  user_id uuid [not null, ref: > users.id]
+  type contribution_type [not null]
+  amount numeric(18,2) [not null, note: 'В валюте цели']
+  currency_id int [not null, ref: > currencies.id]
+  source_amount numeric(18,2) [note: 'Списано со счёта в его валюте']
+  source_account_id uuid [ref: > accounts.id]
+  method contribution_method [not null]
+  auto_save_rule_id uuid [ref: > auto_save_rules.id]
+  smart_save_suggestion_id uuid [ref: - smart_save_suggestions.id]
+  note varchar(255)
+  created_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+
+  indexes {
+    (goal_id, created_at)
+    (user_id, created_at)
+  }
+}
+
+Table goal_milestones {
+  goal_id uuid [not null, ref: > goals.id]
+  percent smallint [not null, note: '25, 50, 75, 100']
+  reached_at timestamptz [not null]
+
+  indexes {
+    (goal_id, percent) [pk]
+  }
+}
+
+Enum auto_save_rule_type {
+  fixed_schedule [note: 'Фиксированная сумма по расписанию']
+  percent_of_income [note: 'Процент от каждого дохода']
+  round_up [note: 'Округление каждого расхода']
+}
+
+Table auto_save_rules {
+  id uuid [pk]
+  user_id uuid [not null, ref: > users.id]
+  goal_id uuid [not null, ref: > goals.id]
+  type auto_save_rule_type [not null]
+  amount numeric(18,2) [note: 'Для fixed_schedule']
+  percent numeric(5,2) [note: 'Для percent_of_income']
+  round_to numeric(18,2) [note: 'Для round_up: 1000, 5000, 10000']
+  frequency recurrence_frequency [note: 'Для fixed_schedule']
+  weekday smallint
+  day_of_month smallint
+  source_account_id uuid [not null, ref: > accounts.id]
+  next_run_on date
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+}
+
+Enum suggestion_status {
+  pending
+  accepted
+  declined
+  expired
+}
+
+Table smart_save_suggestions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, ref: > users.id]
+  goal_id uuid [not null, ref: > goals.id]
+  for_date date [not null, note: 'Одно принятое Smart Save в день']
+  amount numeric(18,2) [not null, note: 'Предложенная сумма в валюте цели']
+  amount_base numeric(18,2) [not null]
+  accepted_amount numeric(18,2) [note: 'Пользователь может уменьшить сумму перед подтверждением']
+  currency_id int [not null, ref: > currencies.id]
+  safe_to_spend_today numeric(18,2) [not null]
+  calculation jsonb [not null, note: 'Входные данные формулы для объяснения «почему такая сумма»']
+  status suggestion_status [not null, default: 'pending']
+  expires_at timestamptz [not null, note: 'Конец дня в часовом поясе пользователя']
+  decided_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, for_date)
+  }
+}
+
+// ---------- AI ----------
+
+Enum insight_kind {
+  daily_tip
+  weekly_report
+  monthly_report
+  spending_analysis
+  goal_analysis
+  anomaly
+  budget_forecast
+}
+
+Table ai_insights {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, ref: > users.id]
+  kind insight_kind [not null]
+  goal_id uuid [ref: > goals.id, note: 'Для goal_analysis']
+  transaction_id uuid [ref: > transactions.id, note: 'Для anomaly']
+  period_start date
+  period_end date
+  language language_code [not null]
+  title varchar(160) [not null]
+  summary text
+  recommendation text
+  score smallint [note: '0–100 для goal_analysis']
+  payload jsonb [note: 'Цифры и данные для графиков']
+  model varchar(64)
+  read_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, kind, created_at)
+  }
+}
+
+Table ai_conversations {
+  id uuid [pk]
+  user_id uuid [not null, ref: > users.id]
+  title varchar(160)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+}
+
+Enum ai_message_role {
+  user
+  assistant
+}
+
+Table ai_messages {
+  id uuid [pk]
+  conversation_id uuid [not null, ref: > ai_conversations.id]
+  role ai_message_role [not null]
+  content text [not null]
+  actions jsonb [note: 'Предложенные действия: создать цель, задать лимит — выполняются только после подтверждения']
+  input_tokens int
+  output_tokens int
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (conversation_id, created_at)
+  }
+}
+
+// ---------- Уведомления ----------
+
+Enum notification_type {
+  daily_reminder
+  budget_threshold
+  budget_exceeded
+  goal_milestone
+  goal_deadline
+  recurring_due
+  smart_save
+  auto_save_done
+  weekly_report
+  insight
+}
+
+Table notifications {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, ref: > users.id]
+  type notification_type [not null]
+  title varchar(160) [not null]
+  body varchar(512) [not null]
+  payload jsonb [note: 'Deep link и данные для действий из уведомления']
+  dedupe_key varchar(128) [not null, unique, note: 'budget_threshold:{budget}:{category}:80 — одно уведомление на событие']
+  scheduled_at timestamptz [not null]
+  sent_at timestamptz
+  opened_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, created_at)
+    (sent_at, scheduled_at)
+  }
+}
+
+// ---------- Lunex Pro и монетизация ----------
+
+Enum subscription_source {
+  trial [note: '30 дней Pro при первой регистрации']
+  app_store
+  promo [note: 'Выдано администратором']
+}
+
+Enum subscription_status {
+  active
+  grace_period [note: 'Проблема с оплатой, доступ сохраняется']
+  expired
+  revoked [note: 'Возврат средств или отзыв']
+}
+
+Table subscriptions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, ref: > users.id]
+  source subscription_source [not null]
+  product_id varchar(64) [note: 'lunex.pro.monthly, lunex.pro.yearly; null для trial и promo']
+  status subscription_status [not null, default: 'active']
+  started_at timestamptz [not null]
+  expires_at timestamptz [not null]
+  auto_renew boolean [not null, default: false]
+  original_transaction_id varchar(64) [unique, note: 'App Store original transaction id']
+  environment varchar(16) [note: 'Production или Sandbox']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, expires_at)
+  }
+}
+
+Table store_events {
+  id uuid [pk, default: `gen_random_uuid()`]
+  notification_uuid varchar(64) [not null, unique, note: 'App Store Server Notifications V2 — защита от повторной обработки']
+  notification_type varchar(64) [not null]
+  subtype varchar(64)
+  original_transaction_id varchar(64)
+  subscription_id uuid [ref: > subscriptions.id]
+  signed_payload text [not null]
+  processed_at timestamptz
+  error text
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Enum ai_feature {
+  assistant
+  parse_input
+  receipt
+  insight
+}
+
+Table ai_usage_daily {
+  user_id uuid [not null, ref: > users.id]
+  usage_date date [not null, note: 'В часовом поясе пользователя']
+  feature ai_feature [not null]
+  requests int [not null, default: 0]
+  input_tokens int [not null, default: 0]
+  output_tokens int [not null, default: 0]
+
+  indexes {
+    (user_id, usage_date, feature) [pk]
+  }
+}
+
+// ---------- Администрирование ----------
+
+Table app_settings {
+  key varchar(64) [pk, note: 'monetization_enabled, trial_days, ai_daily_limit_free, ai_daily_limit_pro, free_max_accounts, free_max_goals, smart_save_share']
+  value jsonb [not null]
+  description varchar(255)
+  updated_by uuid [ref: > users.id]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table admin_audit_log {
+  id bigint [pk, increment]
+  admin_id uuid [not null, ref: > users.id]
+  action varchar(64) [not null, note: 'monetization.enable, monetization.disable, setting.update, subscription.grant']
+  target varchar(128)
+  old_value jsonb
+  new_value jsonb
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    created_at
+  }
+}
+```
+
+## Integrations
+
+- **Sign in with Apple** — вход через Apple ID
+- **Google Sign-In (OAuth 2.0 / OIDC)** — вход через Google
+- **Telegram Login** — вход через Telegram; бот-авторизатор без логики нужен только для проверки подписи
+- **Почтовый сервис (Resend)** — одноразовые коды входа
+- **StoreKit 2 и App Store Server API** — подписка Lunex Pro, проверка покупок и уведомления о подписках
+- **APNs** — push-уведомления с действиями
+- **ЦБ Узбекистана (cbu.uz)** — ежедневные курсы валют
+- **Claude API** — AI-ассистент и отчёты (claude-sonnet-5-5), разбор голосового и текстового ввода и чеков (claude-haiku-5-5)
+- **Apple Speech и VisionKit** — распознавание речи и чеков на устройстве
+- **WidgetKit, App Intents, Siri, Shortcuts** — виджеты и голосовые команды
+- **Объектное хранилище (S3-совместимое)** — фото чеков и обложки целей
+- **Sentry** — сбои и производительность приложения и бэкенда
+- **App Store Connect / TestFlight** — бета-тестирование и публикация
+
+## Out of scope
+
+- Telegram-бот и перенос его данных — бот полностью выключается, его код сохранён в `bot_old/` только для справки
+- Вход по номеру телефона и SMS
+- Android и веб-версия для пользователей
+- Подключение банков и автоматический импорт выписок
+- Совместные и семейные бюджеты
+- Инвестиции, криптовалюта, учёт долгов и кредитов
+- Версии для iPad и Apple Watch — в следующих релизах
+- Хранение данных на серверах в Узбекистане (не требуется)
+
+## Build plan
+
+1. [x] Подготовка: код Telegram-бота перенесён в `bot_old/` и исключён из продукта
+2. [ ] Основа: дизайн-система (цвета, типографика, компоненты) и макеты ключевых экранов — вход, онбординг, главный, добавление, цели, бюджет, Lunex Pro
+3. [/] Основа: проект NestJS — модули, конфигурация, Prisma, миграции и сиды (валюты, системные категории с переводами uz / ru / en, `app_settings`), Redis + BullMQ, Sentry
+4. [ ] Основа: авторизация в NestJS — Apple, Google, Telegram Login, код на почту, JWT и refresh-токены, связывание аккаунтов, устройства, удаление аккаунта
+5. [ ] Основа: каркас iOS 18 — навигация TabView, локализация, модели SwiftData, сетевой слой, Keychain, Sentry, загрузка удалённой конфигурации
+6. [ ] Основа: доступ к Pro — триал 30 дней при регистрации, проверка Pro и лимитов Free на сервере; при выключенной монетизации открыто всё
+7. [ ] MVP: экраны входа (Apple, Google, Telegram, почта) и онбординга, создание счёта «Наличные»
+8. [ ] MVP: счета и категории — CRUD на сервере и в приложении
+9. [ ] MVP: быстрое добавление операции, история с поиском и фильтрами, редактирование и удаление
+10. [ ] MVP: офлайн-очередь и инкрементальная синхронизация на истории изменений SwiftData, индикатор синхронизации
+11. [ ] MVP: расчёт бюджета в авто-режиме и «Можно потратить сегодня», экран бюджета
+12. [ ] MVP: цели — создание по шаблону, пополнение и снятие, основная цель, приоритет, этапы, достижение цели
+13. [ ] MVP: Smart Save — ежедневный расчёт на сервере (BullMQ), карточка с объяснением, подтверждение с пересчётом
+14. [ ] MVP: главный экран и чек-лист «Первые шаги»
+15. [ ] MVP: настройки, привязка способов входа, Face ID, скрытие сумм, размытие в переключателе приложений
+16. [ ] MVP: unit-тесты формул (дневной лимит, Smart Save, график цели, доступ к Pro), e2e-тесты API, UI-тесты ключевых сценариев, закрытая бета в TestFlight
+17. [ ] Рост: мастер бюджета с лимитами по категориям, перенос остатка, прогноз
+18. [ ] Рост: регулярные платежи и подписки, учёт в дневном лимите, поиск повторяющихся трат
+19. [ ] Рост: push-уведомления через APNs — напоминание, бюджет, цели, Smart Save с действиями, тихие часы
+20. [ ] Рост: мультивалютность — курсы ЦБ, переводы между счетами с курсом
+21. [ ] Рост: автонакопления — по расписанию, процент от дохода, округление
+22. [ ] Рост: аналитика на Swift Charts — категории, динамика, сравнение периодов, календарь трат
+23. [ ] Рост: виджеты домашнего экрана и экрана блокировки, App Intents и Siri, Пункт управления, быстрые действия
+24. [ ] AI: учёт расхода в `ai_usage_daily` и дневные лимиты Free / Pro
+25. [ ] AI: совет дня, недельный и месячный отчёты, анализ цели, аномалии, прогноз бюджета
+26. [ ] AI: голосовой и текстовый ввод операций с AI-разбором
+27. [ ] AI: сканирование чеков и вложения
+28. [ ] AI: AI-ассистент — чат, ответы по данным, действия с подтверждением
+29. [ ] Монетизация: продукты Lunex Pro в App Store Connect, экран Pro на StoreKit 2, восстановление покупок, App Store Server API и Notifications V2 — всё скрыто за флагом
+30. [ ] Админка: веб-панель — справочники, параметры, кнопка включения монетизации с подтверждением, промо-доступ, журнал действий, мониторинг
+31. [ ] Релиз: экспорт CSV / PDF, проверка доступности и тёмной темы
+32. [ ] Релиз: публикация в App Store — скриншоты на трёх языках, политика конфиденциальности, App Privacy, ревью продуктов подписки
+33. [ ] После релиза: включение монетизации кнопкой в админке, когда будет принято решение
+
+## Open questions
+
+- [ ] Утвердить разделение Free / Pro и лимиты Free (2 счета, 3 активные цели, 5 сообщений AI в день)
+- [ ] Цены Lunex Pro за месяц и год; нужен ли пробный период App Store поверх собственного триала
+- [ ] Что получают пользователи, у которых триал закончился до включения монетизации: сразу Free или дополнительные дни Pro (рекомендуется 14 дней с момента включения)?
+- [ ] Почтовый сервис для кодов входа — Resend (рекомендуется) или AWS SES; домен отправителя
+
+## Бизнес-правила
+
+- **Суммы** хранятся положительными, знак задаёт тип операции; округление и отображение — по `decimals` валюты (UZS — без копеек).
+- **Баланс месяца** = доходы − расходы бюджетного месяца в базовой валюте; переводы между счетами на него не влияют, взносы в цели учитываются как «отложено», а не как расход.
+- **Доступно на месяц** = (план дохода или факт дохода, берётся большее) + перенесённый остаток − цель накоплений месяца − расходы до сегодняшнего дня − предстоящие регулярные платежи до конца месяца.
+- **Дневной лимит** = доступно на месяц ÷ число оставшихся дней, включая сегодня; если задан общий лимит, берётся меньшее из двух значений. **Можно потратить сегодня** = дневной лимит − расходы сегодня.
+- **Smart Save**: сумма = 50 % от (баланс месяца − предстоящие платежи) ÷ оставшиеся дни, округлённая вниз до `rounding_step` (UZS — 1000). Сумма не больше остатка до цели и не больше баланса счёта. Если сумма меньше `min_smart_save` — статус «слишком мало». Цель — основная активная, иначе первая по приоритету. Принятие — не чаще раза в день. Без бюджета расчёт идёт по балансу месяца, как fallback в боте.
+- **Прогресс цели** = ⌊накоплено ÷ сумма × 100⌋. Когда накоплено ≥ суммы, цель автоматически становится «Достигнута» и новые пополнения не принимаются, пока цель не вернут в работу. Снятие не может превышать накопленное.
+- **График цели**: нужный взнос = (сумма − накоплено) ÷ число оставшихся периодов до дедлайна. «В графике» — если накоплено не меньше линейно ожидаемого на сегодня, с допуском 5 %.
+- **Основная цель** у пользователя одна; если основную цель завершили или архивировали, основной становится следующая по приоритету.
+- **Регулярные платежи**: день 29–31 в коротком месяце переносится на последний день; пропущенные из-за офлайна запуски досоздаются при синхронизации без дублей.
+- **Часовой пояс** берётся с устройства пользователя (по умолчанию Asia/Tashkent); «сегодня» и «месяц» считаются в нём.
+- **Уведомления** не повторяются для одного события (`dedupe_key`), соблюдают тихие часы и лимит 3 в день.
+- **Доступ к Pro** есть, если монетизация выключена или у пользователя есть подписка (`subscriptions`) в статусе active или grace_period с `expires_at` в будущем. Триал создаётся один раз на пользователя при первой регистрации.
+- **Лимиты Free** проверяет сервер при создании записи; приложение заранее показывает предложение Pro, но источником правды не является.
+- **Лимит AI** считается по `ai_usage_daily` в часовом поясе пользователя и сбрасывается в полночь.
+- **Связывание аккаунтов**: способ входа привязывается автоматически только по подтверждённой почте; Telegram почту не отдаёт, поэтому его привязывают вручную из настроек.
+
+## Что меняется по сравнению с ботом
+
+- Пятишаговый мастер операции → шторка с клавиатурой, 2–3 касания, голос и скан чека
+- Операции нельзя было изменить или удалить → полная история с поиском, фильтрами и редактированием
+- Одна валюта и нет счетов → несколько счетов, переводы, курсы ЦБ
+- Бюджет только автоматический → авто-режим плюс лимиты по категориям, перенос остатка и прогноз
+- Smart Save по кнопке → ежедневное предложение с объяснением, принимается из уведомления
+- Цели только с ручным пополнением → снятие, пауза, этапы, график взносов, автонакопления и округление
+- Insights из четырёх кнопок → интерактивная аналитика, отчёты, аномалии и AI-ассистент в чате
+- Адаптивное меню → главный экран с цифрой «Можно потратить сегодня» и чек-листом первых шагов
+- Только онлайн → офлайн-first с синхронизацией, виджеты, Siri, Face ID
+- Регистрация по номеру телефона в боте → вход через Apple, Google, Telegram или почту
+- JSON-RPC бэкенд бота → новый REST API на NestJS
+
+## Решения
+
+- **Бэкенд** — новый, на NestJS (TypeScript) с PostgreSQL; JSON-RPC сервис бота не используется.
+- **Telegram-бот** полностью исключён и выключается, данные из него не переносятся; код сохранён в `bot_old/` только для справки.
+- **Вход** — Apple, Google, Telegram (OAuth) и одноразовый код на почту; SMS и вход по номеру телефона не делаем.
+- **Монетизация** — Lunex Pro готов в коде, но выключен; включается одной кнопкой в админке с подтверждением. Каждый новый пользователь получает 30 дней Pro при регистрации.
+- **Локализация данных** в Узбекистане не требуется.
+- **Минимальная iOS — 18**: те же устройства, что и у iOS 17 (iPhone XS / XR и новее), плюс история изменений SwiftData для синхронизации, `#Index` / `#Unique` и кнопки Пункта управления.
+- **Лимит AI** есть: 5 сообщений ассистенту в день в Free и 50 в Pro; значения меняются в админке.
+- **iPad и Apple Watch** — после первого релиза.
+
+## Working with Coddle
+
+- The spec: https://coddle.uz/studio/synetra/lunex-finance/lunex-finance-spec — `spec_read` before a step; `spec_tick` a plan step with `state: "doing"` when you start it, and a step or an acceptance criterion as soon as it is done; write new decisions into it with `spec_edit` (only the changed text).
+- The schema: https://coddle.uz/studio/synetra/lunex-finance/lunex-finance-db — change it with `db_edit`, compare it with the code with `db_drift`, take migrations with `db_migration`.
+- This project is a spec and a schema only: it has no architecture — do not design, write or simulate one.
+- Export this file again with `spec_export` after the spec changes: run its `download.command` here rather than retyping the file.
