@@ -5,6 +5,7 @@ import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { LoggerModule } from 'nestjs-pino';
 import { AuthModule } from './auth/auth.module.js';
 import { BillingModule } from './billing/billing.module.js';
+import { BudgetModule } from './budget/budget.module.js';
 import { CommonModule } from './common/common.module.js';
 import { type Env, validateEnv } from './config/env.js';
 import { DatabaseModule } from './database/database.module.js';
@@ -54,6 +55,7 @@ import { SyncModule } from './sync/sync.module.js';
     AuthModule,
     BillingModule,
     FinanceModule,
+    BudgetModule,
     SyncModule,
     QueueModule,
     HealthModule,
