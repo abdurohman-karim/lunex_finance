@@ -12,6 +12,7 @@ public final class AppEnvironment {
     public let session: SessionStore
     public let signIn: SignInService
     public let onboarding: OnboardingService
+    public let sync: SyncEngine
     public let localizer: Localizer
     public let container: ModelContainer
     public let deviceId: UUID
@@ -26,6 +27,7 @@ public final class AppEnvironment {
         session: SessionStore,
         signIn: SignInService,
         onboarding: OnboardingService,
+        sync: SyncEngine,
         localizer: Localizer,
         container: ModelContainer,
         deviceId: UUID,
@@ -35,6 +37,7 @@ public final class AppEnvironment {
         self.session = session
         self.signIn = signIn
         self.onboarding = onboarding
+        self.sync = sync
         self.localizer = localizer
         self.container = container
         self.deviceId = deviceId
@@ -70,13 +73,19 @@ public final class AppEnvironment {
             google: config.googleClientID.map { GoogleSignIn(clientID: $0, transport: transport) }
         )
 
+        let container = makeContainer()
+        let sync = SyncEngine(api: api, container: container) { profile in session.update(profile) }
+        session.onSessionEnded = { sync.reset() }
+        sync.startMonitoringNetwork()
+
         return AppEnvironment(
             config: config,
             session: session,
             signIn: signIn,
             onboarding: OnboardingService(api: api, session: session),
+            sync: sync,
             localizer: Localizer(),
-            container: makeContainer(),
+            container: container,
             deviceId: deviceId,
             api: api
         )
@@ -92,6 +101,7 @@ public final class AppEnvironment {
         let api = APIClient(baseURL: developmentAPI, transport: URLSessionTransport(), session: auth)
         let session = SessionStore(api: api, auth: auth, cache: UserDefaultsProfileCache(defaults: UserDefaults(suiteName: "preview")!))
         let deviceId = DeviceIdentity.id(in: store)
+        let container = try! LunexStore.makeContainer(inMemory: true)
         return AppEnvironment(
             config: config,
             session: session,
@@ -103,8 +113,9 @@ public final class AppEnvironment {
                 google: nil
             ),
             onboarding: OnboardingService(api: api, session: session),
+            sync: SyncEngine(api: api, container: container) { _ in },
             localizer: Localizer(defaults: UserDefaults(suiteName: "preview")!),
-            container: try! LunexStore.makeContainer(inMemory: true),
+            container: container,
             deviceId: deviceId,
             api: api
         )
@@ -114,7 +125,7 @@ public final class AppEnvironment {
         do {
             return try LunexStore.makeContainer()
         } catch {
-            // A broken store must not keep the app from starting; the server has the data.
+            // Even a fresh store failed (disk full?): run from memory; the server has the data.
             logger.fault("Local store failed to open: \(error.localizedDescription); using memory")
             return try! LunexStore.makeContainer(inMemory: true)
         }
@@ -127,6 +138,7 @@ extension View {
         environment(app.session)
             .environment(app.signIn)
             .environment(app.onboarding)
+            .environment(app.sync)
             .environment(app.localizer)
             .modelContainer(app.container)
     }

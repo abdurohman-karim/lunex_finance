@@ -1,9 +1,14 @@
 import Foundation
 import SwiftData
 
-// Local mirror of the server data. The app reads and writes these; the sync engine
-// (build plan step «офлайн-очередь и синхронизация») keeps them in step with the API.
-// Ids are the server ids, generated on the device for records created offline.
+// Local mirror of the server data. Screens read these and write through `SyncEngine`, which
+// queues the change and keeps the records in step with the API. Ids are the server ids,
+// generated on the device for records created offline. Deleted records stay with `deletedAt`
+// (an operation can be restored); screens filter them out.
+//
+// V1 has not shipped yet, so it is still edited in place; a store from an older build that
+// no longer opens is removed and refilled from the server (`LunexStore.makeContainer`).
+// After the first release every change goes through a new version and `LunexMigrationPlan`.
 
 public enum LunexSchemaV1: VersionedSchema {
     public static let versionIdentifier = Schema.Version(1, 0, 0)
@@ -15,6 +20,7 @@ public enum LunexSchemaV1: VersionedSchema {
             TransactionRecord.self,
             GoalRecord.self,
             ContributionRecord.self,
+            SettingsRecord.self,
             PendingOperation.self,
             SyncCursor.self,
         ]
@@ -113,21 +119,27 @@ public enum LunexSchemaV1: VersionedSchema {
         public var amount: Decimal
         public var currency: String
         public var transferAmount: Decimal?
+        public var transferCurrency: String?
+        /// In the user's base currency at the rate of the operation date
         public var amountBase: Decimal
+        public var baseCurrency: String
+        public var fxRate: Decimal
         public var categoryId: UUID?
         public var note: String?
         public var merchant: String?
         public var occurredAt: Date
         public var source: String
+        public var createdAt: Date
         public var updatedAt: Date
         public var deletedAt: Date?
 
         public init(
             id: UUID, type: String, accountId: UUID, transferAccountId: UUID? = nil,
             amount: Decimal, currency: String, transferAmount: Decimal? = nil,
-            amountBase: Decimal, categoryId: UUID? = nil, note: String? = nil,
+            transferCurrency: String? = nil, amountBase: Decimal, baseCurrency: String? = nil,
+            fxRate: Decimal = 1, categoryId: UUID? = nil, note: String? = nil,
             merchant: String? = nil, occurredAt: Date, source: String = "quick_add",
-            updatedAt: Date = .now, deletedAt: Date? = nil
+            createdAt: Date = .now, updatedAt: Date = .now, deletedAt: Date? = nil
         ) {
             self.id = id
             self.type = type
@@ -136,12 +148,16 @@ public enum LunexSchemaV1: VersionedSchema {
             self.amount = amount
             self.currency = currency
             self.transferAmount = transferAmount
+            self.transferCurrency = transferCurrency
             self.amountBase = amountBase
+            self.baseCurrency = baseCurrency ?? currency
+            self.fxRate = fxRate
             self.categoryId = categoryId
             self.note = note
             self.merchant = merchant
             self.occurredAt = occurredAt
             self.source = source
+            self.createdAt = createdAt
             self.updatedAt = updatedAt
             self.deletedAt = deletedAt
         }
@@ -164,6 +180,19 @@ public enum LunexSchemaV1: VersionedSchema {
         public var priority: Int
         public var linkedAccountId: UUID?
         public var milestones: [Int]
+        /// ⌊saved ÷ target × 100⌋, may exceed 100
+        public var progress: Int
+        /// The server's plan to the deadline; nil without a deadline
+        public var schedulePerDay: Decimal?
+        public var schedulePerWeek: Decimal?
+        public var schedulePerMonth: Decimal?
+        public var scheduleExpectedSaved: Decimal?
+        /// on_track, behind, ahead
+        public var scheduleStatus: String?
+        public var scheduleDaysLeft: Int?
+        public var completedAt: Date?
+        public var archivedAt: Date?
+        public var createdAt: Date
         public var updatedAt: Date
         public var deletedAt: Date?
 
@@ -172,7 +201,7 @@ public enum LunexSchemaV1: VersionedSchema {
             targetAmount: Decimal, savedAmount: Decimal = 0, currency: String,
             deadline: String? = nil, status: String = "active", isPrimary: Bool = false,
             priority: Int = 0, linkedAccountId: UUID? = nil, milestones: [Int] = [],
-            updatedAt: Date = .now, deletedAt: Date? = nil
+            progress: Int = 0, createdAt: Date = .now, updatedAt: Date = .now, deletedAt: Date? = nil
         ) {
             self.id = id
             self.title = title
@@ -188,6 +217,8 @@ public enum LunexSchemaV1: VersionedSchema {
             self.priority = priority
             self.linkedAccountId = linkedAccountId
             self.milestones = milestones
+            self.progress = progress
+            self.createdAt = createdAt
             self.updatedAt = updatedAt
             self.deletedAt = deletedAt
         }
@@ -202,6 +233,9 @@ public enum LunexSchemaV1: VersionedSchema {
         public var amount: Decimal
         public var currency: String
         public var accountId: UUID?
+        /// What the account paid or got, in its currency
+        public var accountAmount: Decimal?
+        public var accountCurrency: String?
         /// manual, smart_save, auto_save, round_up
         public var method: String
         public var note: String?
@@ -228,6 +262,53 @@ public enum LunexSchemaV1: VersionedSchema {
         }
     }
 
+    /// The user's settings (one row), as the server last sent them.
+    @Model
+    public final class SettingsRecord {
+        @Attribute(.unique) public var key: String
+        public var biometricLockEnabled: Bool
+        public var lockAfterSeconds: Int
+        public var hideAmounts: Bool
+        /// 1 = Monday … 7 = Sunday
+        public var weekStartsOn: Int
+        /// Payday: the budget month starts on it
+        public var monthStartsOnDay: Int
+        public var defaultAccountId: UUID?
+        public var dailyReminderEnabled: Bool
+        /// `HH:MM`
+        public var dailyReminderTime: String
+        public var budgetAlertsEnabled: Bool
+        public var goalAlertsEnabled: Bool
+        public var recurringAlertsEnabled: Bool
+        public var smartSaveEnabled: Bool
+        public var weeklyReportEnabled: Bool
+        public var quietHoursStart: String
+        public var quietHoursEnd: String
+        public var hapticsEnabled: Bool
+        public var updatedAt: Date
+
+        public init(key: String = "main", updatedAt: Date = .now) {
+            self.key = key
+            self.biometricLockEnabled = false
+            self.lockAfterSeconds = 60
+            self.hideAmounts = false
+            self.weekStartsOn = 1
+            self.monthStartsOnDay = 1
+            self.defaultAccountId = nil
+            self.dailyReminderEnabled = true
+            self.dailyReminderTime = "21:00"
+            self.budgetAlertsEnabled = true
+            self.goalAlertsEnabled = true
+            self.recurringAlertsEnabled = true
+            self.smartSaveEnabled = true
+            self.weeklyReportEnabled = true
+            self.quietHoursStart = "22:00"
+            self.quietHoursEnd = "08:00"
+            self.hapticsEnabled = true
+            self.updatedAt = updatedAt
+        }
+    }
+
     /// A change made on this device that the server has not confirmed yet
     /// (one entry of `POST /v1/sync/push`).
     @Model
@@ -237,13 +318,22 @@ public enum LunexSchemaV1: VersionedSchema {
         public var type: String
         /// The operation as the API expects it, JSON
         public var payload: Data
+        /// The record it changes, so a pull does not overwrite a change still on its way
+        public var recordId: UUID?
+        /// Queue order; `createdAt` can repeat within one tap
+        public var sequence: Int
         public var createdAt: Date
         public var attempts: Int
 
-        public init(opId: String = UUID().uuidString, type: String, payload: Data, createdAt: Date = .now) {
+        public init(
+            opId: String = UUID().uuidString, type: String, payload: Data, recordId: UUID? = nil,
+            sequence: Int = 0, createdAt: Date = .now
+        ) {
             self.opId = opId
             self.type = type
             self.payload = payload
+            self.recordId = recordId
+            self.sequence = sequence
             self.createdAt = createdAt
             self.attempts = 0
         }
@@ -269,6 +359,7 @@ public typealias CategoryRecord = LunexSchemaV1.CategoryRecord
 public typealias TransactionRecord = LunexSchemaV1.TransactionRecord
 public typealias GoalRecord = LunexSchemaV1.GoalRecord
 public typealias ContributionRecord = LunexSchemaV1.ContributionRecord
+public typealias SettingsRecord = LunexSchemaV1.SettingsRecord
 public typealias PendingOperation = LunexSchemaV1.PendingOperation
 public typealias SyncCursor = LunexSchemaV1.SyncCursor
 
@@ -282,15 +373,20 @@ public enum LunexStore {
     /// The app's local database; in memory for tests and previews.
     public static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
         let schema = Schema(versionedSchema: LunexSchemaV1.self)
-        let configuration = ModelConfiguration(
-            "Lunex",
-            schema: schema,
-            isStoredInMemoryOnly: inMemory
-        )
-        return try ModelContainer(
-            for: schema,
-            migrationPlan: LunexMigrationPlan.self,
-            configurations: configuration
-        )
+        let configuration = ModelConfiguration("Lunex", schema: schema, isStoredInMemoryOnly: inMemory)
+        do {
+            return try open(schema, configuration)
+        } catch where !inMemory {
+            // A store this build cannot read (an older pre-release schema): the server has the
+            // data, so start empty and let the next sync refill it.
+            for suffix in ["", "-shm", "-wal"] {
+                try? FileManager.default.removeItem(at: URL(filePath: configuration.url.path() + suffix))
+            }
+            return try open(schema, configuration)
+        }
+    }
+
+    private static func open(_ schema: Schema, _ configuration: ModelConfiguration) throws -> ModelContainer {
+        try ModelContainer(for: schema, migrationPlan: LunexMigrationPlan.self, configurations: configuration)
     }
 }

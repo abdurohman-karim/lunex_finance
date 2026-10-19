@@ -36,7 +36,12 @@ struct LunexApp: App {
         .onChange(of: scenePhase) { _, phase in
             // Plan and limits may change on the server (e.g. monetization switched on).
             if phase == .active {
-                Task { await environment.session.refreshAccess() }
+                Task {
+                    await environment.session.refreshAccess()
+                    if environment.session.profile?.onboardingCompleted == true {
+                        await environment.sync.sync()
+                    }
+                }
             }
         }
     }

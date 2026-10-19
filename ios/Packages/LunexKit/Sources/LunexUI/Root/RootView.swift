@@ -5,6 +5,7 @@ import SwiftUI
 /// Chooses between the welcome screen and the app by session state.
 public struct RootView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(SyncEngine.self) private var sync
     @Environment(Localizer.self) private var localizer
 
     public init() {}
@@ -28,6 +29,17 @@ public struct RootView: View {
         .tint(LunexColor.ink)
         .animation(.default, value: session.state)
         .task { await session.restore() }
+        .task(id: readyAccount) {
+            // Signed in and set up (also right after onboarding): bring the local store up to date.
+            if readyAccount != nil {
+                await sync.sync()
+            }
+        }
+    }
+
+    private var readyAccount: UUID? {
+        guard let profile = session.profile, profile.onboardingCompleted else { return nil }
+        return profile.id
     }
 }
 

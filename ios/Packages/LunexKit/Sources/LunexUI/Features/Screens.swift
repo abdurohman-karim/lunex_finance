@@ -6,6 +6,7 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(SyncEngine.self) private var sync
     @Environment(Localizer.self) private var localizer
 
     var body: some View {
@@ -43,7 +44,10 @@ struct HomeView: View {
                     .disabled(true)
             }
         }
-        .refreshable { await session.reloadProfile() }
+        .refreshable {
+            await sync.sync()
+            await session.refreshAccess()
+        }
     }
 }
 
@@ -94,6 +98,7 @@ struct BudgetView: View {
 
 struct SettingsView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(SyncEngine.self) private var sync
     @Environment(Localizer.self) private var localizer
 
     var body: some View {
@@ -132,6 +137,13 @@ struct SettingsView: View {
                     }
                 }
             }
+            Section(localizer("settings.sync")) {
+                SyncStatusRow()
+                Button(localizer("settings.sync.now")) {
+                    Task { await sync.sync() }
+                }
+                .disabled(sync.status == .syncing)
+            }
             Section {
                 Button(localizer("settings.signOut"), role: .destructive) {
                     Task { await session.signOut() }
@@ -152,5 +164,74 @@ extension Bundle {
         let version = object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
         let build = object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
         return "\(version) (\(build))"
+    }
+}
+
+/// «Синхронизировано 2 минуты назад», «Нет сети», what is still waiting and what was refused.
+private struct SyncStatusRow: View {
+    @Environment(SyncEngine.self) private var sync
+    @Environment(Localizer.self) private var localizer
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { _ in
+            HStack(alignment: .firstTextBaseline, spacing: LunexTheme.Spacing.space3) {
+                Image(systemName: symbol)
+                    .foregroundStyle(sync.status == .failed ? LunexColor.negative : LunexColor.ink)
+                VStack(alignment: .leading, spacing: LunexTheme.Spacing.space1) {
+                    Text(title)
+                        .lunexText(.body)
+                        .foregroundStyle(LunexColor.ink)
+                    ForEach(details, id: \.self) { detail in
+                        Text(detail)
+                            .lunexText(.caption)
+                            .foregroundStyle(LunexColor.inkMuted)
+                    }
+                    if !sync.rejections.isEmpty {
+                        Text(localizer.format("settings.sync.rejected", sync.rejections.count))
+                            .lunexText(.caption)
+                            .foregroundStyle(LunexColor.negative)
+                    }
+                }
+                Spacer(minLength: 0)
+                if sync.status == .syncing {
+                    ProgressView()
+                }
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private var symbol: String {
+        switch sync.status {
+        case .syncing: "arrow.triangle.2.circlepath"
+        case .offline: "wifi.slash"
+        case .failed: "exclamationmark.triangle"
+        case .idle: sync.pendingCount > 0 ? "icloud.and.arrow.up" : "checkmark.icloud"
+        }
+    }
+
+    private var title: String {
+        switch sync.status {
+        case .syncing: return localizer("settings.sync.syncing")
+        case .offline: return localizer("settings.sync.offline")
+        case .failed: return localizer("settings.sync.failed")
+        case .idle:
+            guard let last = sync.lastSyncedAt else { return localizer("settings.sync.never") }
+            return localizer.format(
+                "settings.sync.synced",
+                last.formatted(.relative(presentation: .named).locale(localizer.locale))
+            )
+        }
+    }
+
+    private var details: [String] {
+        var lines: [String] = []
+        if sync.pendingCount > 0 {
+            lines.append(localizer.format("settings.sync.pending", sync.pendingCount))
+        }
+        if sync.status == .failed, let error = sync.lastError {
+            lines.append(localizer.message(for: error))
+        }
+        return lines
     }
 }

@@ -48,6 +48,8 @@ public final class SessionStore {
     private let api: APIClient
     private let auth: AuthSession
     private let cache: ProfileCache
+    /// Runs when the session ends, e.g. to wipe this account's local data.
+    @ObservationIgnored public var onSessionEnded: (@MainActor () -> Void)?
 
     public init(api: APIClient, auth: AuthSession, cache: ProfileCache) {
         self.api = api
@@ -120,6 +122,7 @@ public final class SessionStore {
         cache.save(nil)
         state = .signedOut
         access = nil
+        onSessionEnded?()
     }
 
     private func apply(_ profile: Profile) {
