@@ -80,6 +80,11 @@ public final class SessionStore {
         await refreshAccess()
     }
 
+    /// A profile the server returned from another call (onboarding, a profile edit).
+    public func update(_ profile: Profile) {
+        apply(profile)
+    }
+
     public func reloadProfile() async {
         do {
             apply(try await api.send(API.me()))

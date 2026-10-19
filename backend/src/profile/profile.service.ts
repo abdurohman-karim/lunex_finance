@@ -449,7 +449,7 @@ export class ProfileService {
             currency: user.baseCurrency.code,
             initialBalance: '0',
             icon: 'banknote',
-            color: '#30D158',
+            color: '#5D5C61',
             includeInTotal: true,
           })
         : null;

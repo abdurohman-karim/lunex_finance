@@ -11,6 +11,7 @@ public final class AppEnvironment {
     public let config: AppConfig
     public let session: SessionStore
     public let signIn: SignInService
+    public let onboarding: OnboardingService
     public let localizer: Localizer
     public let container: ModelContainer
     public let deviceId: UUID
@@ -24,6 +25,7 @@ public final class AppEnvironment {
         config: AppConfig,
         session: SessionStore,
         signIn: SignInService,
+        onboarding: OnboardingService,
         localizer: Localizer,
         container: ModelContainer,
         deviceId: UUID,
@@ -32,6 +34,7 @@ public final class AppEnvironment {
         self.config = config
         self.session = session
         self.signIn = signIn
+        self.onboarding = onboarding
         self.localizer = localizer
         self.container = container
         self.deviceId = deviceId
@@ -71,6 +74,7 @@ public final class AppEnvironment {
             config: config,
             session: session,
             signIn: signIn,
+            onboarding: OnboardingService(api: api, session: session),
             localizer: Localizer(),
             container: makeContainer(),
             deviceId: deviceId,
@@ -98,6 +102,7 @@ public final class AppEnvironment {
                 telegramStartURL: TelegramLogin.startURL(apiBaseURL: developmentAPI),
                 google: nil
             ),
+            onboarding: OnboardingService(api: api, session: session),
             localizer: Localizer(defaults: UserDefaults(suiteName: "preview")!),
             container: try! LunexStore.makeContainer(inMemory: true),
             deviceId: deviceId,
@@ -121,6 +126,7 @@ extension View {
     public func lunexEnvironment(_ app: AppEnvironment) -> some View {
         environment(app.session)
             .environment(app.signIn)
+            .environment(app.onboarding)
             .environment(app.localizer)
             .modelContainer(app.container)
     }

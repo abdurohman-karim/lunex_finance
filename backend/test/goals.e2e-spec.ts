@@ -129,7 +129,7 @@ describe('Goals (e2e)', () => {
     expect(first).toMatchObject({
       title: 'Новый iPhone',
       emoji: '📱',
-      color: '#0A84FF',
+      color: '#557A95',
       currency: 'UZS',
       savedAmount: '0',
       remaining: '10000000',

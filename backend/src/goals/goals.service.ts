@@ -44,7 +44,8 @@ type Decimal = Prisma.Decimal;
 const { Decimal } = Prisma;
 
 const DEFAULT_EMOJI = '🎯';
-const DEFAULT_COLOR = '#0A84FF';
+/** `data-steel`, the design system's main data colour. */
+const DEFAULT_COLOR = '#557A95';
 /** Statuses in which a goal is being saved for; only these can be primary. */
 const LIVE: GoalStatus[] = ['active', 'paused'];
 

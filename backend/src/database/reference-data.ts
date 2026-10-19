@@ -234,41 +234,42 @@ export interface GoalTemplate {
 }
 
 /** Ready-made goals offered in onboarding and on «Новая цель». */
+/** Colours come from the design system's data palette: goals are data, the rest of the UI is monochrome. */
 export const GOAL_TEMPLATES: readonly GoalTemplate[] = [
   {
     key: 'phone',
     emoji: '📱',
-    color: '#0A84FF',
+    color: '#557A95',
     labels: { uz: 'Telefon', ru: 'Телефон', en: 'Phone' },
   },
   {
     key: 'car',
     emoji: '🚗',
-    color: '#FF9F0A',
+    color: '#B1A296',
     labels: { uz: 'Avtomobil', ru: 'Машина', en: 'Car' },
   },
   {
     key: 'home',
     emoji: '🏠',
-    color: '#30D158',
+    color: '#5D5C61',
     labels: { uz: 'Uy', ru: 'Дом', en: 'Home' },
   },
   {
     key: 'travel',
     emoji: '✈️',
-    color: '#64D2FF',
+    color: '#7395AE',
     labels: { uz: 'Sayohat', ru: 'Путешествие', en: 'Travel' },
   },
   {
     key: 'education',
     emoji: '🎓',
-    color: '#5E5CE6',
+    color: '#938E94',
     labels: { uz: 'Taʼlim', ru: 'Учёба', en: 'Education' },
   },
   {
     key: 'emergency_fund',
     emoji: '🛟',
-    color: '#FF453A',
+    color: '#557A95',
     labels: {
       uz: 'Favqulodda jamgʻarma',
       ru: 'Подушка безопасности',
@@ -278,13 +279,13 @@ export const GOAL_TEMPLATES: readonly GoalTemplate[] = [
   {
     key: 'wedding',
     emoji: '💍',
-    color: '#FF6482',
+    color: '#B1A296',
     labels: { uz: 'Toʻy', ru: 'Свадьба', en: 'Wedding' },
   },
   {
     key: 'gadget',
     emoji: '💻',
-    color: '#BF5AF2',
+    color: '#7395AE',
     labels: { uz: 'Gadjet', ru: 'Гаджет', en: 'Gadget' },
   },
 ];

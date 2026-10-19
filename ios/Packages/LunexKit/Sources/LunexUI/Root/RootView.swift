@@ -16,8 +16,12 @@ public struct RootView: View {
                 LoadingView()
             case .signedOut:
                 NavigationStack { WelcomeView() }
-            case .signedIn:
-                MainTabView()
+            case let .signedIn(profile):
+                if profile.onboardingCompleted {
+                    MainTabView()
+                } else {
+                    OnboardingView()
+                }
             }
         }
         .environment(\.locale, localizer.locale)
