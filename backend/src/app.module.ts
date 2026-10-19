@@ -3,9 +3,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { LoggerModule } from 'nestjs-pino';
+import { AuthModule } from './auth/auth.module.js';
+import { CommonModule } from './common/common.module.js';
 import { type Env, validateEnv } from './config/env.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
+import { MailModule } from './mail/mail.module.js';
 import { QueueModule } from './queue/queue.module.js';
 import { RedisModule } from './redis/redis.module.js';
 
@@ -43,6 +46,9 @@ import { RedisModule } from './redis/redis.module.js';
     }),
     DatabaseModule,
     RedisModule,
+    CommonModule,
+    MailModule,
+    AuthModule,
     QueueModule,
     HealthModule,
   ],

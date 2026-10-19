@@ -2,6 +2,7 @@ import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, OnApplicationBootstrap } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 import { PrismaService } from '../database/prisma.service.js';
+import { UsersService } from '../users/users.service.js';
 import {
   EMAIL_CODE_RETENTION_MS,
   MAINTENANCE_QUEUE,
@@ -18,6 +19,7 @@ export class MaintenanceProcessor
   constructor(
     @InjectQueue(MAINTENANCE_QUEUE) private readonly queue: Queue,
     private readonly prisma: PrismaService,
+    private readonly users: UsersService,
   ) {
     super();
   }
@@ -29,12 +31,19 @@ export class MaintenanceProcessor
       { every: 60 * 60 * 1000 },
       { name: MaintenanceJob.PurgeExpiredEmailCodes },
     );
+    await this.queue.upsertJobScheduler(
+      MaintenanceJob.PurgeDeletedAccounts,
+      { pattern: '0 3 * * *', tz: 'Asia/Tashkent' },
+      { name: MaintenanceJob.PurgeDeletedAccounts },
+    );
   }
 
   async process(job: Job): Promise<unknown> {
     switch (job.name) {
       case MaintenanceJob.PurgeExpiredEmailCodes:
         return this.purgeExpiredEmailCodes();
+      case MaintenanceJob.PurgeDeletedAccounts:
+        return this.users.purgeDeletedAccounts();
       default:
         throw new Error(`Unknown maintenance job: ${job.name}`);
     }

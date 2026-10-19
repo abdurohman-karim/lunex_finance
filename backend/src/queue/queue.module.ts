@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AuthModule } from '../auth/auth.module.js';
 import type { Env } from '../config/env.js';
 import { MaintenanceProcessor } from './maintenance.processor.js';
 import { MAINTENANCE_QUEUE } from './queue.constants.js';
@@ -21,6 +22,7 @@ import { MAINTENANCE_QUEUE } from './queue.constants.js';
       }),
     }),
     BullModule.registerQueue({ name: MAINTENANCE_QUEUE }),
+    AuthModule,
   ],
   providers: [MaintenanceProcessor],
   exports: [BullModule],

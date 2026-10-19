@@ -2,6 +2,7 @@ export const MAINTENANCE_QUEUE = 'maintenance';
 
 export const MaintenanceJob = {
   PurgeExpiredEmailCodes: 'purge-expired-email-codes',
+  PurgeDeletedAccounts: 'purge-deleted-accounts',
 } as const;
 
 /** Expired email login codes are kept this long for auditing attempts, then deleted. */

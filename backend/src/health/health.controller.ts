@@ -5,11 +5,13 @@ import {
   HealthIndicatorService,
 } from '@nestjs/terminus';
 import type { Redis } from 'ioredis';
+import { Public } from '../auth/auth.decorators.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { REDIS } from '../redis/redis.module.js';
 
 const CHECK_TIMEOUT_MS = 2_000;
 
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(
