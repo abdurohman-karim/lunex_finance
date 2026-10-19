@@ -44,6 +44,16 @@ With `EMAIL_PROVIDER=console` the email login code is printed to the server log.
 - A sign-in whose provider returns a **verified** email that already belongs to an account is linked to that account.
 - Errors carry a stable `code` (`invalid_code`, `refresh_token_reused`, `identity_in_use`, `last_identity`, `rate_limited`, …) for the app to localise.
 
+## Lunex Pro
+
+`GET /v1/me/access` returns the plan, its source (`monetization_off`, `trial`, `app_store`, `promo`, or `null` on Free), the trial, the Pro features and the limits. The app calls it on launch and on return from background.
+
+- While `app_settings.monetization_enabled` is `false` everyone has Pro and nothing is locked; the trial is still recorded from sign-up.
+- Once it is `true`, Pro needs a subscription that is `active` or in `grace_period` and not expired; otherwise the Free limits apply (`free_max_accounts`, `free_max_goals`, `ai_daily_limit_free`, two months of analytics).
+- Settings are cached for 10 seconds per instance, so a change reaches every instance within that time.
+- In feature code: `@RequiresPro('auto_save')` on a route (403 `pro_required`), and `entitlements.assertCanCreate(userId, 'accounts' | 'active_goals')` before creating or re-activating a capped record (403 `free_limit_reached`). Archived accounts and paused goals do not count; records above the cap stay readable.
+- An hourly maintenance job marks ended subscriptions `expired`.
+
 ## Checks
 
 ```bash

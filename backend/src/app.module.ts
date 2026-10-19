@@ -4,6 +4,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { LoggerModule } from 'nestjs-pino';
 import { AuthModule } from './auth/auth.module.js';
+import { BillingModule } from './billing/billing.module.js';
 import { CommonModule } from './common/common.module.js';
 import { type Env, validateEnv } from './config/env.js';
 import { DatabaseModule } from './database/database.module.js';
@@ -49,6 +50,7 @@ import { RedisModule } from './redis/redis.module.js';
     CommonModule,
     MailModule,
     AuthModule,
+    BillingModule,
     QueueModule,
     HealthModule,
   ],

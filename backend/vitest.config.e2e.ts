@@ -6,6 +6,8 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    // Files share one database and flip global app_settings, so they run one after another.
+    fileParallelism: false,
     // Process env wins over .env, so these fixed test values apply on every machine and in CI.
     env: {
       NODE_ENV: 'test',
