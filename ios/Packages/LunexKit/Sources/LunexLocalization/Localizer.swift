@@ -49,6 +49,10 @@ public final class Localizer {
 
     public var locale: Locale { language.locale }
 
+    /// Privacy mode («глаз»): every amount the app formats shows as dots. Set from the
+    /// account's `hide_amounts` setting.
+    public var hidesAmounts = false
+
     @ObservationIgnored private let defaults: UserDefaults
 
     public init(defaults: UserDefaults = .standard) {

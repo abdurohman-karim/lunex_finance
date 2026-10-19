@@ -15,6 +15,7 @@ struct HomeView: View {
     @Environment(SyncEngine.self) private var sync
     @Environment(BudgetPlans.self) private var plans
     @Environment(SmartSaveStore.self) private var smartSave
+    @Environment(SettingsStore.self) private var settings
     @Environment(Localizer.self) private var localizer
     @Environment(\.scenePhase) private var scenePhase
     private var budget = BudgetQuery()
@@ -79,6 +80,18 @@ struct HomeView: View {
                     .foregroundStyle(LunexColor.inkMuted)
                     .accessibilityLabel(localizer("home.offline"))
             }
+            // «Глаз»: hides every amount (privacy mode), here and on the other screens.
+            Button {
+                try? settings.update(.hideAmounts(!localizer.hidesAmounts))
+            } label: {
+                Image(systemName: localizer.hidesAmounts ? "eye.slash" : "eye")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(LunexColor.ink)
+                    .frame(width: 40, height: 40)
+                    .background(LunexColor.surfaceSunken, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(localizer(localizer.hidesAmounts ? "home.showAmounts" : "home.hideAmounts"))
         }
         .padding(.top, LunexTheme.Spacing.space2)
     }

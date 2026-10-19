@@ -1,5 +1,6 @@
 import LunexCore
 import LunexLocalization
+import SwiftData
 import SwiftUI
 
 /// Chooses between the welcome screen and the app by session state.
@@ -7,7 +8,12 @@ public struct RootView: View {
     @Environment(SessionStore.self) private var session
     @Environment(SyncEngine.self) private var sync
     @Environment(BudgetPlans.self) private var budgetPlans
+    @Environment(SettingsStore.self) private var settings
+    @Environment(AppLock.self) private var appLock
     @Environment(Localizer.self) private var localizer
+    @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(AppTheme.storageKey) private var theme = AppTheme.system
+    @Query private var records: [SettingsRecord]
 
     public init() {}
 
@@ -26,8 +32,31 @@ public struct RootView: View {
                 }
             }
         }
+        // The switcher shows the screen blurred; a locked app shows nothing but the lock.
+        .blur(radius: scenePhase == .active ? 0 : 24)
+        .overlay {
+            if readyAccount != nil, appLock.isLocked {
+                LockView().transition(.opacity)
+            } else if scenePhase != .active {
+                PrivacyCover()
+            }
+        }
         .environment(\.locale, localizer.locale)
+        .preferredColorScheme(theme.colorScheme)
         .tint(LunexColor.ink)
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .background: appLock.didEnterBackground()
+            case .active: appLock.didBecomeActive()
+            default: break
+            }
+        }
+        .onChange(of: records.first?.hideAmounts, initial: true) { _, hidden in
+            localizer.hidesAmounts = hidden ?? false
+        }
+        .onChange(of: lockSettings, initial: true) { _, value in
+            appLock.configure(enabled: value.enabled, lockAfterSeconds: value.seconds)
+        }
         .animation(.default, value: session.state)
         .task { await session.restore() }
         .task(id: readyAccount) {
@@ -35,8 +64,22 @@ public struct RootView: View {
             if readyAccount != nil {
                 await sync.sync()
                 await budgetPlans.refresh()
+                // «Сегодня» and «месяц» are counted in the device's time zone.
+                let zone = TimeZone.current.identifier
+                if let profile = session.profile, profile.timezone != zone {
+                    try? settings.updateProfile(timezone: zone)
+                }
             }
         }
+    }
+
+    private var lockSettings: LockSettings {
+        LockSettings(enabled: records.first?.biometricLockEnabled ?? false, seconds: records.first?.lockAfterSeconds ?? 60)
+    }
+
+    private struct LockSettings: Equatable {
+        let enabled: Bool
+        let seconds: Int
     }
 
     private var readyAccount: UUID? {

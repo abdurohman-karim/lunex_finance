@@ -19,6 +19,9 @@ public final class AppEnvironment {
     public let budgetPlans: BudgetPlans
     public let smartSave: SmartSaveStore
     public let firstSteps = FirstStepsStore()
+    public let settings: SettingsStore
+    public let account: AccountService
+    public let appLock: AppLock
     public let toasts = ToastCenter()
     public let localizer: Localizer
     public let container: ModelContainer
@@ -52,8 +55,14 @@ public final class AppEnvironment {
         self.budgetPlans = budgetPlans
         let smartSave = SmartSaveStore(api: api, sync: sync)
         self.smartSave = smartSave
+        self.settings = SettingsStore(container: container, sync: sync)
+        self.account = AccountService(api: api, session: session)
+        // Locked from the first frame when the account has the lock on (the store is local).
+        let stored = try? container.mainContext.fetch(FetchDescriptor<SettingsRecord>()).first
+        let appLock = AppLock(enabled: stored?.biometricLockEnabled ?? false, lockAfterSeconds: stored?.lockAfterSeconds ?? 60)
+        self.appLock = appLock
         // Signing out leaves nothing of the account on the device.
-        session.onSessionEnded = { sync.reset(); budgetPlans.reset(); smartSave.reset() }
+        session.onSessionEnded = { sync.reset(); budgetPlans.reset(); smartSave.reset(); appLock.reset() }
         self.localizer = localizer
         self.container = container
         self.deviceId = deviceId
@@ -160,6 +169,9 @@ extension View {
             .environment(app.budgetPlans)
             .environment(app.smartSave)
             .environment(app.firstSteps)
+            .environment(app.settings)
+            .environment(app.account)
+            .environment(app.appLock)
             .environment(app.toasts)
             .environment(app.localizer)
             .modelContainer(app.container)

@@ -61,6 +61,8 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
+        # Translated in InfoPlist.xcstrings
+        NSFaceIDUsageDescription: Lunex uses Face ID to keep your finances private.
         NSAppTransportSecurity:
           # Plain HTTP only to localhost (the development backend); everything else HTTPS.
           NSAllowsLocalNetworking: true

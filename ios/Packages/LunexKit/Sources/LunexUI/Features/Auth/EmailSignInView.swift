@@ -9,8 +9,12 @@ struct EmailSignInView: View {
         case email, code
     }
 
+    /// Where the checked code goes instead of signing in: linking the address to the account.
+    var submit: ((SignInCredential) async throws -> Void)?
+
     @Environment(SignInService.self) private var signIn
     @Environment(Localizer.self) private var localizer
+    @Environment(\.dismiss) private var dismiss
 
     @State private var email = ""
     @State private var code = ""
@@ -189,8 +193,14 @@ struct EmailSignInView: View {
         Task {
             defer { working = false }
             do {
-                // On success the session switches the app to the main screen.
-                try await signIn.signIn(.email(address: address, code: code), language: localizer.language.rawValue)
+                let credential = SignInCredential.email(address: address, code: code)
+                if let submit {
+                    try await submit(credential)
+                    dismiss()
+                } else {
+                    // On success the session switches the app to the main screen.
+                    try await signIn.signIn(credential, language: localizer.language.rawValue)
+                }
             } catch {
                 errorText = localizer.message(for: error)
                 self.code = ""

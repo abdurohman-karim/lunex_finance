@@ -138,6 +138,9 @@ extension Localizer {
     /// «45 000», «−45 000», «12,50 $»: grouped the language's way; the currency is named only
     /// when asked (a sum in another currency than the base one).
     func amount(_ value: Decimal, currency: String, signed: Bool = false, showCurrency: Bool = false) -> String {
+        if hidesAmounts {
+            return showCurrency ? "•••• \(currencyName(currency))" : "••••"
+        }
         let digits = LunexCore.Money.fractionDigits(for: currency)
         let number = abs(value).formatted(
             .number.precision(.fractionLength(digits)).locale(locale)
