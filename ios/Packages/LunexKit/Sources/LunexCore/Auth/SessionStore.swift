@@ -103,7 +103,10 @@ public final class SessionStore {
         guard await auth.hasSession else { return }
         do {
             access = try await api.send(API.access())
+            if lastError?.isOffline == true { lastError = nil }
         } catch {
+            // A refresh gesture that ends early cancels the request: that is not «no connection».
+            if Task.isCancelled { return }
             lastError = error as? APIError ?? APIError.offline(error)
         }
     }

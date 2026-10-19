@@ -101,4 +101,26 @@ struct SessionStoreTests {
         #expect(session.profile?.email == "smoke@lunex.test")
         #expect(session.lastError?.isOffline == true)
     }
+
+    @Test("a successful access refresh clears the «no connection» mark")
+    func backOnline() async throws {
+        let online = Counter()
+        let cache = MemoryCache()
+        cache.profile = try LunexJSON.decoder().decode(Profile.self, from: Data(profileJSON.utf8))
+        let auth = AuthSession(store: signedInStore(), refresher: { _ in
+            if online.count == 0 { throw APIError.offline(URLError(.notConnectedToInternet)) }
+            return try LunexJSON.decoder().decode(TokenPair.self, from: Data(tokensJSON(access: "access-2").utf8))
+        })
+        let transport = StubTransport { _ in
+            if online.count == 0 { throw URLError(.notConnectedToInternet) }
+            return (200, #"{"monetizationEnabled":false,"plan":"pro","source":"trial","expiresAt":null,"trial":null,"features":[],"limits":{"accounts":null,"activeGoals":null,"aiMessagesPerDay":50,"analyticsMonths":null}}"#)
+        }
+        let session = SessionStore(api: APIClient(baseURL: baseURL, transport: transport, session: auth), auth: auth, cache: cache)
+        await session.restore()
+        #expect(session.lastError?.isOffline == true)
+        online.increment()
+        await session.refreshAccess()
+        #expect(session.access?.isPro == true)
+        #expect(session.lastError == nil)
+    }
 }
