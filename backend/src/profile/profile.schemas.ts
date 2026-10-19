@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { languageSchema } from '../auth/auth.schemas.js';
-import { positiveMoneySchema } from '../common/schemas.js';
+import { positiveMoneySchema, uuidSchema } from '../common/schemas.js';
 import { createGoalSchema } from '../goals/goals.schemas.js';
 
 export function isValidTimeZone(value: string): boolean {
@@ -55,7 +55,7 @@ export const updateSettingsSchema = z
     weekStartsOn: z.number().int().min(1).max(7),
     /** Payday: the budget month starts on it */
     monthStartsOnDay: z.number().int().min(1).max(31),
-    defaultAccountId: z.uuid(),
+    defaultAccountId: uuidSchema,
     dailyReminderEnabled: z.boolean(),
     dailyReminderTime: clockTimeSchema,
     budgetAlertsEnabled: z.boolean(),
@@ -79,7 +79,7 @@ export const onboardingSchema = z.object({
   focus: focusSchema.optional(),
   monthlyIncomeEstimate: positiveMoneySchema.optional(),
   /** Id the app generated for the cash account created now */
-  cashAccountId: z.uuid(),
+  cashAccountId: uuidSchema,
   firstGoal: createGoalSchema.optional(),
 });
 export type OnboardingInput = z.infer<typeof onboardingSchema>;

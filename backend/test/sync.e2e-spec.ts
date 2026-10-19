@@ -198,6 +198,76 @@ describe('Sync (e2e)', () => {
     });
   });
 
+  it('accepts ids in capitals, as the iOS app sends them', async () => {
+    const me = await newUser();
+    const cash = randomUUID();
+    const coffee = randomUUID();
+    const goal = randomUUID();
+    const deposit = randomUUID();
+    const up = (id: string) => id.toUpperCase();
+    const contribute = (opId: string) => ({
+      opId,
+      type: 'goal.contribute',
+      goalId: up(goal),
+      data: {
+        id: up(deposit),
+        type: 'deposit',
+        amount: '40000',
+        accountId: up(cash),
+      },
+    });
+
+    const res = await push(me, [
+      {
+        opId: 'a',
+        type: 'account.create',
+        data: { id: up(cash), name: 'Наличные', currency: 'UZS' },
+      },
+      {
+        opId: 'b',
+        type: 'category.create',
+        data: {
+          id: up(coffee),
+          type: 'expense',
+          name: 'Кофе',
+          icon: 'cup.and.saucer',
+          color: '#557A95',
+          parentId: up(FOOD),
+        },
+      },
+      {
+        opId: 'c',
+        type: 'goal.create',
+        data: { id: up(goal), title: 'Телефон', targetAmount: '100000' },
+      },
+      contribute('d'),
+      // A resent deposit is the same deposit, not an id conflict.
+      contribute('e'),
+      {
+        opId: 'f',
+        type: 'goal.contribution.delete',
+        goalId: up(goal),
+        id: up(deposit),
+      },
+      { opId: 'g', type: 'category.reorder', data: { ids: [up(FOOD)] } },
+    ]);
+    expect(
+      res.body.results.map((r: { opId: string; status: string }) => [
+        r.opId,
+        r.status,
+      ]),
+    ).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((op) => [op, 'applied']));
+    // Ids come back the way they are stored.
+    expect(res.body.results[0].record).toMatchObject({ id: cash });
+
+    const saved = await prisma.goals.findUniqueOrThrow({ where: { id: goal } });
+    expect(saved.saved_amount.toNumber()).toBe(0);
+    const account = await prisma.accounts.findUniqueOrThrow({
+      where: { id: cash },
+    });
+    expect(account.current_balance.toNumber()).toBe(0);
+  });
+
   it('is safe to resend a batch after a lost response', async () => {
     const me = await newUser();
     const cash = randomUUID();

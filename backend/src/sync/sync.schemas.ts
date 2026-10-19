@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { reorderSchema } from '../common/schemas.js';
+import { reorderSchema, uuidSchema } from '../common/schemas.js';
 import {
   createAccountSchema,
   updateAccountSchema,
@@ -23,8 +23,8 @@ import {
 } from '../profile/profile.schemas.js';
 
 const opId = z.string().min(1).max(64);
-const id = z.uuid();
-const goalId = z.uuid();
+const id = uuidSchema;
+const goalId = uuidSchema;
 
 /** One queued change from the app. Every kind is idempotent, so a batch can be resent. */
 export const syncOperationSchema = z.discriminatedUnion('type', [

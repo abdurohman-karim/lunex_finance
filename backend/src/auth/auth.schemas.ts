@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { uuidSchema } from '../common/schemas.js';
 
 export const languageSchema = z.enum(['uz', 'ru', 'en']);
 
 /** The installation's id (kept in the Keychain) and what it runs; one refresh-token family per device. */
 export const deviceSchema = z.object({
-  id: z.uuid(),
+  id: uuidSchema,
   model: z.string().max(64).optional(),
   osVersion: z.string().max(32).optional(),
   appVersion: z.string().max(32).optional(),

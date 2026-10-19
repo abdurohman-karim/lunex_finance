@@ -35,7 +35,13 @@ export const hexColorSchema = z
   .regex(/^#[0-9A-Fa-f]{6}$/, 'A color like #0A84FF')
   .transform((value) => value.toUpperCase());
 
-export const uuidParamSchema = z.uuid();
+/**
+ * A UUID, lowercased: ids are compared as strings after parsing, and the iOS app sends them in
+ * capitals (`UUID.uuidString`). Every id that comes in goes through this.
+ */
+export const uuidSchema = z.uuid().transform((value) => value.toLowerCase());
+
+export const uuidParamSchema = uuidSchema;
 
 /** `?updatedSince=` for incremental sync: also returns deleted records as tombstones. */
 export const listQuerySchema = z.object({
@@ -47,7 +53,7 @@ export const listQuerySchema = z.object({
 
 export const reorderSchema = z.object({
   ids: z
-    .array(z.uuid())
+    .array(uuidSchema)
     .min(1)
     .max(500)
     .refine((ids) => new Set(ids).size === ids.length, 'ids must be unique'),
