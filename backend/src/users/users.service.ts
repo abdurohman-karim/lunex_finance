@@ -407,6 +407,7 @@ export class UsersService {
       await tx.budgets.deleteMany({ where: byUser });
       await tx.userSettings.deleteMany({ where: byUser });
       await tx.goals.deleteMany({ where: byUser });
+      await tx.categoryPreferences.deleteMany({ where: byUser });
       await tx.categoryTranslations.deleteMany({ where: { category: byUser } });
       await tx.categories.deleteMany({
         where: { ...byUser, parent_id: { not: null } },

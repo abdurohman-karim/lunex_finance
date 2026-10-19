@@ -300,6 +300,7 @@ model Users {
   aiUsageDaily           AiUsageDaily[]
   appSettings            AppSettings[]
   adminAuditLog          AdminAuditLog[]
+  categoryPreferences    CategoryPreferences[]
 
   @@map("users")
 }
@@ -381,14 +382,14 @@ model UserSettings {
   month_starts_on_day      Int      @default(1) @db.SmallInt
   default_account_id       String?  @db.Uuid
   daily_reminder_enabled   Boolean  @default(true)
-  daily_reminder_time      DateTime @default(dbgenerated("'21:00:00'::time")) @db.Time()
+  daily_reminder_time      DateTime @default(dbgenerated("'21:00:00'::time without time zone")) @db.Time()
   budget_alerts_enabled    Boolean  @default(true)
   goal_alerts_enabled      Boolean  @default(true)
   recurring_alerts_enabled Boolean  @default(true)
   smart_save_enabled       Boolean  @default(true)
   weekly_report_enabled    Boolean  @default(true)
-  quiet_hours_start        DateTime @default(dbgenerated("'22:00:00'::time")) @db.Time()
-  quiet_hours_end          DateTime @default(dbgenerated("'08:00:00'::time")) @db.Time()
+  quiet_hours_start        DateTime @default(dbgenerated("'22:00:00'::time without time zone")) @db.Time()
+  quiet_hours_end          DateTime @default(dbgenerated("'08:00:00'::time without time zone")) @db.Time()
   haptics_enabled          Boolean  @default(true)
   updated_at               DateTime @default(now()) @updatedAt
 
@@ -456,6 +457,7 @@ model Categories {
   parent               Categories?            @relation("category_parent", fields: [parent_id], references: [id])
   children             Categories[]           @relation("category_parent")
   categoryTranslations CategoryTranslations[]
+  categoryPreferences  CategoryPreferences[]
   transactions         Transactions[]
   recurringRules       RecurringRules[]
   budgetCategoryLimits BudgetCategoryLimits[]
@@ -463,6 +465,21 @@ model Categories {
   @@index([user_id, type])
   @@index([type, key])
   @@map("categories")
+}
+
+/// Порядок и скрытие системных категорий для конкретного пользователя; у своих категорий это поля самих categories
+model CategoryPreferences {
+  user_id     String   @db.Uuid
+  category_id String   @db.Uuid
+  sort_order  Int
+  is_archived Boolean  @default(false)
+  updated_at  DateTime @default(now()) @updatedAt
+
+  user     Users      @relation(fields: [user_id], references: [id])
+  category Categories @relation(fields: [category_id], references: [id])
+
+  @@id([user_id, category_id])
+  @@map("category_preferences")
 }
 
 model CategoryTranslations {

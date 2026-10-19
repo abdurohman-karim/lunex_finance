@@ -8,6 +8,7 @@ import { BillingModule } from './billing/billing.module.js';
 import { CommonModule } from './common/common.module.js';
 import { type Env, validateEnv } from './config/env.js';
 import { DatabaseModule } from './database/database.module.js';
+import { FinanceModule } from './finance/finance.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { QueueModule } from './queue/queue.module.js';
@@ -51,6 +52,7 @@ import { RedisModule } from './redis/redis.module.js';
     MailModule,
     AuthModule,
     BillingModule,
+    FinanceModule,
     QueueModule,
     HealthModule,
   ],
