@@ -80,48 +80,49 @@ export function systemCategoryId(type: CategoryType, key: string): string {
 }
 
 // Order is the default order in the category grid. The first six expense and five income
-// categories are the ones the Telegram bot had.
+// categories are the ones the Telegram bot had. Colours are muted tones of the design system's
+// data palette: categories colour charts, the rest of the UI stays monochrome.
 const EXPENSE_CATEGORIES: readonly CategoryDefinition[] = [
   {
     key: 'food',
     icon: 'fork.knife',
-    color: '#FF9F0A',
+    color: '#C08B5C',
     labels: { uz: 'Oziq-ovqat', ru: 'Еда', en: 'Food' },
   },
   {
     key: 'transport',
     icon: 'bus.fill',
-    color: '#0A84FF',
+    color: '#557A95',
     labels: { uz: 'Transport', ru: 'Транспорт', en: 'Transport' },
   },
   {
     key: 'market',
     icon: 'cart.fill',
-    color: '#30D158',
+    color: '#6E8B74',
     labels: { uz: 'Supermarket', ru: 'Супермаркет', en: 'Groceries' },
   },
   {
     key: 'shopping',
     icon: 'bag.fill',
-    color: '#FF375F',
+    color: '#938E94',
     labels: { uz: 'Xaridlar', ru: 'Покупки', en: 'Shopping' },
   },
   {
     key: 'subscriptions',
     icon: 'creditcard.fill',
-    color: '#5E5CE6',
+    color: '#8A9BA8',
     labels: { uz: 'Obunalar', ru: 'Подписки', en: 'Subscriptions' },
   },
   {
     key: 'fun',
     icon: 'party.popper.fill',
-    color: '#FFD60A',
+    color: '#B1A296',
     labels: { uz: 'Koʻngilochar', ru: 'Развлечения', en: 'Entertainment' },
   },
   {
     key: 'cafe',
     icon: 'cup.and.saucer.fill',
-    color: '#BF5AF2',
+    color: '#8C7B6B',
     labels: {
       uz: 'Kafe va restoranlar',
       ru: 'Кафе и рестораны',
@@ -131,19 +132,19 @@ const EXPENSE_CATEGORIES: readonly CategoryDefinition[] = [
   {
     key: 'health',
     icon: 'cross.case.fill',
-    color: '#FF453A',
+    color: '#5F8A8B',
     labels: { uz: 'Salomatlik', ru: 'Здоровье', en: 'Health' },
   },
   {
     key: 'home',
     icon: 'house.fill',
-    color: '#AC8E68',
+    color: '#5D5C61',
     labels: { uz: 'Uy-joy', ru: 'Жильё', en: 'Housing' },
   },
   {
     key: 'utilities',
     icon: 'bolt.fill',
-    color: '#64D2FF',
+    color: '#7395AE',
     labels: {
       uz: 'Kommunal xizmatlar',
       ru: 'Коммунальные услуги',
@@ -153,13 +154,13 @@ const EXPENSE_CATEGORIES: readonly CategoryDefinition[] = [
   {
     key: 'education',
     icon: 'graduationcap.fill',
-    color: '#32ADE6',
+    color: '#557A95',
     labels: { uz: 'Taʼlim', ru: 'Образование', en: 'Education' },
   },
   {
     key: 'gifts',
     icon: 'gift.fill',
-    color: '#FF6482',
+    color: '#C08B5C',
     labels: { uz: 'Sovgʻalar', ru: 'Подарки', en: 'Gifts' },
   },
 ];
@@ -168,43 +169,43 @@ const INCOME_CATEGORIES: readonly CategoryDefinition[] = [
   {
     key: 'salary',
     icon: 'briefcase.fill',
-    color: '#30D158',
+    color: '#6E8B74',
     labels: { uz: 'Ish haqi', ru: 'Зарплата', en: 'Salary' },
   },
   {
     key: 'transfer',
     icon: 'arrow.down.left.circle.fill',
-    color: '#0A84FF',
+    color: '#557A95',
     labels: { uz: 'Oʻtkazma', ru: 'Перевод', en: 'Transfer' },
   },
   {
     key: 'business',
     icon: 'chart.line.uptrend.xyaxis',
-    color: '#5E5CE6',
+    color: '#5D5C61',
     labels: { uz: 'Biznes', ru: 'Бизнес', en: 'Business' },
   },
   {
     key: 'sale',
     icon: 'tag.fill',
-    color: '#FF9F0A',
+    color: '#C08B5C',
     labels: { uz: 'Sotuv', ru: 'Продажа', en: 'Sale' },
   },
   {
     key: 'gift',
     icon: 'gift.fill',
-    color: '#FF6482',
+    color: '#938E94',
     labels: { uz: 'Sovgʻa', ru: 'Подарок', en: 'Gift' },
   },
   {
     key: 'freelance',
     icon: 'laptopcomputer',
-    color: '#64D2FF',
+    color: '#7395AE',
     labels: { uz: 'Frilans', ru: 'Фриланс', en: 'Freelance' },
   },
   {
     key: 'cashback',
     icon: 'arrow.uturn.backward.circle.fill',
-    color: '#FFD60A',
+    color: '#B1A296',
     labels: { uz: 'Keshbek', ru: 'Кешбэк', en: 'Cashback' },
   },
 ];

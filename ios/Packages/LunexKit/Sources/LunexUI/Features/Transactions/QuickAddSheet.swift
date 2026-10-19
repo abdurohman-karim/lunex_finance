@@ -5,12 +5,13 @@ import SwiftUI
 
 /// What the quick-add sheet opens for: a new operation of a kind, or an existing one to edit.
 enum TransactionEditor: Identifiable, Hashable {
-    case new(TransactionKind)
+    /// `accountId` preselects the account (a transfer from an account's screen)
+    case new(TransactionKind, accountId: UUID? = nil)
     case edit(UUID)
 
     var id: String {
         switch self {
-        case let .new(kind): "new-\(kind.rawValue)"
+        case let .new(kind, accountId): "new-\(kind.rawValue)-\(accountId?.uuidString ?? "")"
         case let .edit(id): id.uuidString
         }
     }
@@ -62,7 +63,7 @@ struct QuickAddSheet: View {
 
     init(editor: TransactionEditor) {
         self.editor = editor
-        let kind: TransactionKind = if case let .new(kind) = editor { kind } else { .expense }
+        let kind: TransactionKind = if case let .new(kind, _) = editor { kind } else { .expense }
         _draft = State(initialValue: TransactionDraft(kind: kind, amount: AmountInput(fractionDigits: 0)))
         let since = Date.now.addingTimeInterval(-90 * 24 * 3600)
         _recent = Query(filter: #Predicate<TransactionRecord> { $0.occurredAt >= since && $0.deletedAt == nil })
@@ -366,8 +367,8 @@ struct QuickAddSheet: View {
         guard !isLoaded else { return }
         isLoaded = true
         switch editor {
-        case .new:
-            if let account = defaultAccount { select(account) }
+        case let .new(_, accountId):
+            if let account = accounts.first(where: { $0.id == accountId }) ?? defaultAccount { select(account) }
             if draft.kind == .transfer {
                 draft.transferAccountId = accounts.first { $0.id != draft.accountId }?.id
             }

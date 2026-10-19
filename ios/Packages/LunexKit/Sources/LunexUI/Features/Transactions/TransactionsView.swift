@@ -45,7 +45,7 @@ struct TransactionsView: View {
                 }
             }
         }
-        .groupedByDay()
+        .groupedLists()
         .scrollContentBackground(.hidden)
         .background(LunexColor.paper)
         .overlay {
@@ -246,16 +246,6 @@ struct TransactionsView: View {
 }
 
 private extension View {
-    /// Rounded day sections on paper (iOS); `swift test` builds for macOS, where they do not exist.
-    func groupedByDay() -> some View {
-        #if os(iOS)
-        listStyle(.insetGrouped)
-            .listSectionSpacing(LunexTheme.Spacing.space4)
-        #else
-        self
-        #endif
-    }
-
     /// The search field stays under the title instead of hiding until the list is pulled down.
     func historySearch(text: Binding<String>, prompt: String) -> some View {
         #if os(iOS)
@@ -267,7 +257,7 @@ private extension View {
 }
 
 /// «Сегодня» … «−57 000»: the day and what it added up to.
-private struct DayHeader: View {
+struct DayHeader: View {
     let day: HistoryDay
     let currency: String
     @Environment(Localizer.self) private var localizer

@@ -103,6 +103,18 @@ struct SettingsView: View {
                     }
                 }
             }
+            Section(localizer("settings.manage")) {
+                NavigationLink {
+                    AccountsView()
+                } label: {
+                    Label(localizer("accounts.title"), systemImage: "wallet.pass")
+                }
+                NavigationLink {
+                    CategoriesView()
+                } label: {
+                    Label(localizer("categories.title"), systemImage: "square.grid.2x2")
+                }
+            }
             Section(localizer("settings.language")) {
                 Picker(localizer("settings.language"), selection: $localizer.language) {
                     ForEach(AppLanguage.allCases) { language in
