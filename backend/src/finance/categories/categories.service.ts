@@ -11,6 +11,13 @@ import type {
   CategoryType,
   LanguageCode,
 } from '../../generated/prisma/enums.js';
+import {
+  type ChangeWindow,
+  type ChangesPage,
+  changeOrder,
+  changeWindowWhere,
+  lastPosition,
+} from '../../sync/sync-window.js';
 import type {
   CreateCategoryInput,
   UpdateCategoryInput,
@@ -398,5 +405,62 @@ export class CategoriesService {
       select: { language: true },
     });
     return user.language;
+  }
+
+  /** Sync stream: system and own category rows changed inside the window, tombstones included. */
+  async changes(
+    userId: string,
+    window: ChangeWindow,
+  ): Promise<ChangesPage<CategoryDto>> {
+    const [language, rows] = await Promise.all([
+      this.language(userId),
+      this.prisma.categories.findMany({
+        where: {
+          AND: [
+            { OR: [{ user_id: null }, { user_id: userId }] },
+            changeWindowWhere(window),
+          ],
+        } as Prisma.CategoriesWhereInput,
+        include: includeFor(userId),
+        orderBy: changeOrder(),
+        take: window.limit,
+      }),
+    ]);
+    return {
+      items: rows.map((row) => toDto(row, language)),
+      last: lastPosition(rows, (row) => ({
+        updatedAt: row.updated_at,
+        id: row.id,
+      })),
+    };
+  }
+
+  /**
+   * Sync stream: system categories whose per-user order or archiving changed.
+   * Items are full category records, so the app upserts them like the other stream.
+   */
+  async preferenceChanges(
+    userId: string,
+    window: ChangeWindow,
+  ): Promise<ChangesPage<CategoryDto>> {
+    const [language, preferences] = await Promise.all([
+      this.language(userId),
+      this.prisma.categoryPreferences.findMany({
+        where: {
+          user_id: userId,
+          ...changeWindowWhere(window, 'category_id'),
+        } as Prisma.CategoryPreferencesWhereInput,
+        include: { category: { include: includeFor(userId) } },
+        orderBy: changeOrder('category_id'),
+        take: window.limit,
+      }),
+    ]);
+    return {
+      items: preferences.map((p) => toDto(p.category, language)),
+      last: lastPosition(preferences, (p) => ({
+        updatedAt: p.updated_at,
+        id: p.category_id,
+      })),
+    };
   }
 }

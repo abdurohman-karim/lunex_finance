@@ -47,6 +47,12 @@ export const envSchema = z
     RESEND_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
     /** Sender, e.g. `Lunex Finance <no-reply@your-domain>`; the domain must be verified in Resend */
     EMAIL_FROM: z.preprocess(emptyToUndefined, z.string().optional()),
+
+    /**
+     * Sync returns changes only up to now minus this lag, so a write still in flight
+     * with an earlier timestamp is never skipped. Longer than any database transaction.
+     */
+    SYNC_LAG_MS: z.coerce.number().int().min(0).max(60_000).default(5_000),
   })
   .superRefine((env, ctx) => {
     if (env.EMAIL_PROVIDER === 'resend') {

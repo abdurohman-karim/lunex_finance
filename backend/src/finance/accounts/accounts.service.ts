@@ -9,6 +9,13 @@ import { assertCurrencyPrecision } from '../../common/schemas.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import type { AccountType } from '../../generated/prisma/enums.js';
+import {
+  type ChangeWindow,
+  type ChangesPage,
+  changeOrder,
+  changeWindowWhere,
+  lastPosition,
+} from '../../sync/sync-window.js';
 import type {
   CreateAccountInput,
   UpdateAccountInput,
@@ -130,11 +137,10 @@ export class AccountsService {
         include: withCurrency,
       });
       // The first account becomes the one quick add preselects.
-      await tx.userSettings.updateMany({
-        where: { user_id: userId, default_account_id: null },
-        data: { default_account_id: account.id },
-      });
-      return toDto(account, await this.defaultAccountId(tx, userId));
+      if (!(await this.defaultAccountId(tx, userId))) {
+        await this.setDefault(tx, userId, account.id);
+      }
+      return this.reload(tx, userId, account.id);
     });
   }
 
@@ -182,7 +188,7 @@ export class AccountsService {
           : new Prisma.Decimal(patch.initialBalance).minus(
               account.initial_balance,
             );
-      const updated = await tx.accounts.update({
+      await tx.accounts.update({
         where: { id },
         data: {
           name: patch.name,
@@ -195,23 +201,16 @@ export class AccountsService {
           include_in_total: patch.includeInTotal,
           is_archived: patch.isArchived,
         },
-        include: withCurrency,
       });
 
       if (patch.isDefault) {
-        await tx.userSettings.update({
-          where: { user_id: userId },
-          data: { default_account_id: id },
-        });
+        await this.setDefault(tx, userId, id);
       } else if (archiving) {
         await this.reassignDefault(tx, userId, id);
-      } else if (unarchiving) {
-        await tx.userSettings.updateMany({
-          where: { user_id: userId, default_account_id: null },
-          data: { default_account_id: id },
-        });
+      } else if (unarchiving && !(await this.defaultAccountId(tx, userId))) {
+        await this.setDefault(tx, userId, id);
       }
-      return toDto(updated, await this.defaultAccountId(tx, userId));
+      return this.reload(tx, userId, id);
     });
   }
 
@@ -341,9 +340,70 @@ export class AccountsService {
       },
       orderBy: [{ sort_order: 'asc' }, { created_at: 'asc' }],
     });
+    await this.setDefault(tx, userId, next?.id ?? null);
+  }
+
+  /**
+   * `isDefault` is stored in user_settings, so the accounts losing and gaining it are
+   * touched too: otherwise sync would never report the change.
+   */
+  private async setDefault(
+    tx: Tx,
+    userId: string,
+    accountId: string | null,
+  ): Promise<void> {
+    const previous = await this.defaultAccountId(tx, userId);
+    if (previous === accountId) {
+      return;
+    }
     await tx.userSettings.update({
       where: { user_id: userId },
-      data: { default_account_id: next?.id ?? null },
+      data: { default_account_id: accountId },
     });
+    const touched = [previous, accountId].filter(
+      (id): id is string => id !== null,
+    );
+    await tx.accounts.updateMany({
+      where: { id: { in: touched } },
+      data: { updated_at: new Date() },
+    });
+  }
+
+  private async reload(
+    tx: Tx,
+    userId: string,
+    id: string,
+  ): Promise<AccountDto> {
+    const row = await tx.accounts.findUniqueOrThrow({
+      where: { id },
+      include: withCurrency,
+    });
+    return toDto(row, await this.defaultAccountId(tx, userId));
+  }
+
+  /** Sync stream: accounts changed inside the window, tombstones included. */
+  async changes(
+    userId: string,
+    window: ChangeWindow,
+  ): Promise<ChangesPage<AccountDto>> {
+    const [defaultId, rows] = await Promise.all([
+      this.defaultAccountId(this.prisma, userId),
+      this.prisma.accounts.findMany({
+        where: {
+          user_id: userId,
+          ...changeWindowWhere(window),
+        } as Prisma.AccountsWhereInput,
+        include: withCurrency,
+        orderBy: changeOrder(),
+        take: window.limit,
+      }),
+    ]);
+    return {
+      items: rows.map((row) => toDto(row, defaultId)),
+      last: lastPosition(rows, (row) => ({
+        updatedAt: row.updated_at,
+        id: row.id,
+      })),
+    };
   }
 }

@@ -1,0 +1,71 @@
+import { z } from 'zod';
+import { reorderSchema } from '../common/schemas.js';
+import {
+  createAccountSchema,
+  updateAccountSchema,
+} from '../finance/accounts/accounts.schemas.js';
+import {
+  createCategorySchema,
+  updateCategorySchema,
+} from '../finance/categories/categories.schemas.js';
+import {
+  createTransactionSchema,
+  updateTransactionSchema,
+} from '../finance/transactions/transactions.schemas.js';
+
+const opId = z.string().min(1).max(64);
+const id = z.uuid();
+
+/** One queued change from the app. Every kind is idempotent, so a batch can be resent. */
+export const syncOperationSchema = z.discriminatedUnion('type', [
+  z.object({
+    opId,
+    type: z.literal('account.create'),
+    data: createAccountSchema,
+  }),
+  z.object({
+    opId,
+    type: z.literal('account.update'),
+    id,
+    data: updateAccountSchema,
+  }),
+  z.object({ opId, type: z.literal('account.delete'), id }),
+  z.object({ opId, type: z.literal('account.reorder'), data: reorderSchema }),
+  z.object({
+    opId,
+    type: z.literal('category.create'),
+    data: createCategorySchema,
+  }),
+  z.object({
+    opId,
+    type: z.literal('category.update'),
+    id,
+    data: updateCategorySchema,
+  }),
+  z.object({ opId, type: z.literal('category.delete'), id }),
+  z.object({ opId, type: z.literal('category.reorder'), data: reorderSchema }),
+  z.object({
+    opId,
+    type: z.literal('transaction.create'),
+    data: createTransactionSchema,
+  }),
+  z.object({
+    opId,
+    type: z.literal('transaction.update'),
+    id,
+    data: updateTransactionSchema,
+  }),
+  z.object({ opId, type: z.literal('transaction.delete'), id }),
+  z.object({ opId, type: z.literal('transaction.restore'), id }),
+]);
+export type SyncOperation = z.infer<typeof syncOperationSchema>;
+
+/** Operations are validated one by one, so a malformed one cannot block the queue. */
+export const pushSchema = z.object({
+  operations: z.array(z.unknown()).min(1).max(100),
+});
+
+export const pullQuerySchema = z.object({
+  cursor: z.string().max(2000).optional(),
+  limit: z.coerce.number().int().min(1).max(1000).default(500),
+});

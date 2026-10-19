@@ -13,6 +13,13 @@ import type {
   TransactionSource,
   TransactionType,
 } from '../../generated/prisma/enums.js';
+import {
+  type ChangeWindow,
+  type ChangesPage,
+  changeOrder,
+  changeWindowWhere,
+  lastPosition,
+} from '../../sync/sync-window.js';
 import { FxService } from '../fx.service.js';
 import { type BalanceMovement, netEffects } from './balance-effects.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
@@ -167,6 +174,32 @@ export class TransactionsService {
   ) {}
 
   // ---------- Reading ----------
+
+  /** Sync stream: operations changed inside the window, tombstones included. */
+  async changes(
+    userId: string,
+    window: ChangeWindow,
+  ): Promise<ChangesPage<TransactionDto>> {
+    const [user, rows] = await Promise.all([
+      this.userContext(userId),
+      this.prisma.transactions.findMany({
+        where: {
+          user_id: userId,
+          ...changeWindowWhere(window),
+        } as Prisma.TransactionsWhereInput,
+        include,
+        orderBy: changeOrder(),
+        take: window.limit,
+      }),
+    ]);
+    return {
+      items: rows.map((row) => toDto(row, user)),
+      last: lastPosition(rows, (row) => ({
+        updatedAt: row.updated_at,
+        id: row.id,
+      })),
+    };
+  }
 
   async get(userId: string, id: string): Promise<TransactionDto> {
     const row = await this.prisma.transactions.findUnique({

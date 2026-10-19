@@ -18,6 +18,8 @@ export default defineConfig({
       GOOGLE_CLIENT_IDS: 'google-test-client',
       TELEGRAM_BOT_TOKEN: '123456:test-token',
       EMAIL_PROVIDER: 'console',
+      // Tests read their own writes right away.
+      SYNC_LAG_MS: '0',
     },
   },
 });

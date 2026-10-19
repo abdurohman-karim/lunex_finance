@@ -22,6 +22,7 @@ describe('validateEnv', () => {
       EMAIL_PROVIDER: 'console',
       RESEND_API_KEY: undefined,
       EMAIL_FROM: undefined,
+      SYNC_LAG_MS: 5000,
     });
   });
 
