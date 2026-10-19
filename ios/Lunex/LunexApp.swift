@@ -40,6 +40,7 @@ struct LunexApp: App {
                     await environment.session.refreshAccess()
                     if environment.session.profile?.onboardingCompleted == true {
                         await environment.sync.sync()
+                        await environment.budgetPlans.refresh()
                     }
                 }
             }

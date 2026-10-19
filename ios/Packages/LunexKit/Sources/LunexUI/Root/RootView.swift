@@ -6,6 +6,7 @@ import SwiftUI
 public struct RootView: View {
     @Environment(SessionStore.self) private var session
     @Environment(SyncEngine.self) private var sync
+    @Environment(BudgetPlans.self) private var budgetPlans
     @Environment(Localizer.self) private var localizer
 
     public init() {}
@@ -33,6 +34,7 @@ public struct RootView: View {
             // Signed in and set up (also right after onboarding): bring the local store up to date.
             if readyAccount != nil {
                 await sync.sync()
+                await budgetPlans.refresh()
             }
         }
     }

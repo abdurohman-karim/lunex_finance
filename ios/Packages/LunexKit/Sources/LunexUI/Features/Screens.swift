@@ -7,14 +7,18 @@ import SwiftUI
 struct HomeView: View {
     @Environment(SessionStore.self) private var session
     @Environment(SyncEngine.self) private var sync
+    @Environment(BudgetPlans.self) private var plans
     @Environment(Localizer.self) private var localizer
+    @Environment(\.scenePhase) private var scenePhase
+    private var budget = BudgetQuery()
     @State private var editor: TransactionEditor?
+    @State private var now = Date.now
 
     var body: some View {
         ScrollView {
             VStack(spacing: LunexTheme.Spacing.space4) {
                 HStack {
-                    SectionLabel(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(localizer.locale)))
+                    SectionLabel(now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(localizer.locale)))
                     Spacer()
                     if session.lastError?.isOffline == true {
                         Label(localizer("home.offline"), systemImage: "wifi.slash")
@@ -23,17 +27,9 @@ struct HomeView: View {
                             .accessibilityLabel(localizer("home.offline"))
                     }
                 }
-                // Filled by the budget («Можно потратить сегодня») in the home-screen step.
-                ProgressRing(progress: 0) {
-                    VStack(spacing: LunexTheme.Spacing.space1) {
-                        SectionLabel(localizer("home.safeToSpend"))
-                            .multilineTextAlignment(.center)
-                        Text("—")
-                            .lunexText(.amountHero)
-                            .foregroundStyle(LunexColor.ink)
-                    }
+                SafeToSpendRing(month: budget.month(now: now), startsOnPayday: budget.startsOnPayday) {
+                    editor = .new(.income)
                 }
-                .frame(width: LunexTheme.Size.ringHero, height: LunexTheme.Size.ringHero)
                 .padding(.top, LunexTheme.Spacing.space4)
             }
             .padding(.horizontal, LunexTheme.Spacing.space4)
@@ -47,6 +43,11 @@ struct HomeView: View {
         .refreshable {
             await sync.sync()
             await session.refreshAccess()
+            await plans.refresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in now = .now }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { now = .now }
         }
         .transactionEditor($editor)
     }
@@ -64,21 +65,6 @@ struct GoalsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(LunexColor.paper)
         .navigationTitle(localizer("tab.goals"))
-    }
-}
-
-struct BudgetView: View {
-    @Environment(Localizer.self) private var localizer
-
-    var body: some View {
-        ContentUnavailableView(
-            localizer("empty.budget.title"),
-            systemImage: "chart.pie",
-            description: Text(localizer("empty.budget.body"))
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(LunexColor.paper)
-        .navigationTitle(localizer("tab.budget"))
     }
 }
 
