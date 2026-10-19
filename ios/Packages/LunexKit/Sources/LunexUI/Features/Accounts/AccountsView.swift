@@ -467,7 +467,7 @@ struct AccountEditor: View {
             guard let record = try? context.fetch(FetchDescriptor<AccountRecord>(predicate: #Predicate { $0.id == id })).first else { return }
             draft = catalog.draft(for: record)
             isNegative = record.initialBalance < 0
-            balanceText = record.initialBalance == 0 ? "" : Self.text(abs(record.initialBalance), separator: localizer.locale.decimalSeparator ?? ",")
+            balanceText = record.initialBalance == 0 ? "" : AmountText.text(abs(record.initialBalance), separator: localizer.locale.decimalSeparator ?? ",")
             currencyLocked = (try? catalog.hasMovements(id)) ?? false
         }
     }
@@ -479,7 +479,7 @@ struct AccountEditor: View {
     }
 
     private func save() {
-        guard let amount = Self.amount(balanceText) else {
+        guard let amount = AmountText.parse(balanceText) else {
             errorMessage = localizer("accounts.initialBalance.invalid")
             return
         }
@@ -495,17 +495,6 @@ struct AccountEditor: View {
         }
     }
 
-    /// «1 250 000,50» → 1250000.50; empty is zero, anything else unreadable is nil.
-    static func amount(_ text: String) -> Decimal? {
-        let cleaned = text.filter { !$0.isWhitespace && $0 != "\u{00A0}" && $0 != "\u{202F}" }
-            .replacingOccurrences(of: ",", with: ".")
-        if cleaned.isEmpty { return 0 }
-        return Decimal.exact(cleaned)
-    }
-
-    static func text(_ value: Decimal, separator: String) -> String {
-        NSDecimalNumber(decimal: value).stringValue.replacingOccurrences(of: ".", with: separator)
-    }
 }
 
 // MARK: - Shared
@@ -544,6 +533,15 @@ extension View {
         environment(\.editMode, .constant(on ? .active : .inactive))
         #else
         self
+        #endif
+    }
+
+    /// Full screen on iOS (the reached-goal celebration); a sheet where that does not exist.
+    func fullScreen<Item: Identifiable, Content: View>(item: Binding<Item?>, @ViewBuilder content: @escaping (Item) -> Content) -> some View {
+        #if os(iOS)
+        fullScreenCover(item: item, content: content)
+        #else
+        sheet(item: item, content: content)
         #endif
     }
 

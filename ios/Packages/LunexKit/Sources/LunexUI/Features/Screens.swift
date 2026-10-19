@@ -53,21 +53,6 @@ struct HomeView: View {
     }
 }
 
-struct GoalsView: View {
-    @Environment(Localizer.self) private var localizer
-
-    var body: some View {
-        ContentUnavailableView(
-            localizer("empty.goals.title"),
-            systemImage: "target",
-            description: Text(localizer("empty.goals.body"))
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(LunexColor.paper)
-        .navigationTitle(localizer("tab.goals"))
-    }
-}
-
 struct SettingsView: View {
     @Environment(SessionStore.self) private var session
     @Environment(SyncEngine.self) private var sync

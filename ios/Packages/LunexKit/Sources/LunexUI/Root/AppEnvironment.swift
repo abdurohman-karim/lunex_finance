@@ -15,6 +15,7 @@ public final class AppEnvironment {
     public let sync: SyncEngine
     public let ledger: Ledger
     public let catalog: Catalog
+    public let goals: GoalBook
     public let budgetPlans: BudgetPlans
     public let toasts = ToastCenter()
     public let localizer: Localizer
@@ -44,6 +45,7 @@ public final class AppEnvironment {
         self.sync = sync
         self.ledger = Ledger(container: container, sync: sync) { session.profile?.baseCurrency ?? "UZS" }
         self.catalog = Catalog(container: container, sync: sync)
+        self.goals = GoalBook(container: container, sync: sync)
         let budgetPlans = BudgetPlans(api: api)
         self.budgetPlans = budgetPlans
         // Signing out leaves nothing of the account on the device.
@@ -150,6 +152,7 @@ extension View {
             .environment(app.sync)
             .environment(app.ledger)
             .environment(app.catalog)
+            .environment(app.goals)
             .environment(app.budgetPlans)
             .environment(app.toasts)
             .environment(app.localizer)

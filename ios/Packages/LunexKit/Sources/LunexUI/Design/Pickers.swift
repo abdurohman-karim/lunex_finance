@@ -13,6 +13,21 @@ extension Color {
     }
 }
 
+/// Amounts typed into a plain text field (opening balance, goal target).
+enum AmountText {
+    /// «1 250 000,50» → 1250000.50; empty is zero, anything else unreadable is nil.
+    static func parse(_ text: String) -> Decimal? {
+        let cleaned = text.filter { !$0.isWhitespace && $0 != "\u{00A0}" && $0 != "\u{202F}" }
+            .replacingOccurrences(of: ",", with: ".")
+        if cleaned.isEmpty { return 0 }
+        return Decimal.exact(cleaned)
+    }
+
+    static func text(_ value: Decimal, separator: String) -> String {
+        NSDecimalNumber(decimal: value).stringValue.replacingOccurrences(of: ".", with: separator)
+    }
+}
+
 /// SF Symbols offered in the editors (outline forms: the design system draws outlines).
 enum Symbols {
     static let accounts = [

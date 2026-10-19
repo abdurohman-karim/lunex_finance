@@ -510,7 +510,7 @@ private struct KindPicker: View {
 }
 
 /// 1 2 3 + / 4 5 6 − / 7 8 9 × / 000 0 ⌫ Готово. Currencies with minor units get «,» instead of «000».
-private struct Keypad: View {
+struct Keypad: View {
     let fractionDigits: Int
     let canSave: Bool
     let press: (AmountInput.Key) -> Void
@@ -565,7 +565,7 @@ private struct Keypad: View {
     }
 }
 
-private struct KeyStyle: ButtonStyle {
+struct KeyStyle: ButtonStyle {
     enum Style {
         case digit, `operator`, done
     }
