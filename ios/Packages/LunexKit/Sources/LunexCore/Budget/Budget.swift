@@ -72,7 +72,7 @@ public enum BudgetMath {
         )
     }
 
-    static func rounded(_ value: Decimal, _ digits: Int, _ mode: NSDecimalNumber.RoundingMode) -> Decimal {
+    public static func rounded(_ value: Decimal, _ digits: Int, _ mode: NSDecimalNumber.RoundingMode) -> Decimal {
         var value = value
         var result = Decimal()
         NSDecimalRound(&result, &value, digits, mode)

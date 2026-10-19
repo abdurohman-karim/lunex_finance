@@ -8,13 +8,16 @@ struct HomeView: View {
     @Environment(SessionStore.self) private var session
     @Environment(SyncEngine.self) private var sync
     @Environment(BudgetPlans.self) private var plans
+    @Environment(SmartSaveStore.self) private var smartSave
     @Environment(Localizer.self) private var localizer
     @Environment(\.scenePhase) private var scenePhase
     private var budget = BudgetQuery()
     @State private var editor: TransactionEditor?
+    @State private var goalEditor: GoalEditorTarget?
     @State private var now = Date.now
 
     var body: some View {
+        let month = budget.month(now: now)
         ScrollView {
             VStack(spacing: LunexTheme.Spacing.space4) {
                 HStack {
@@ -27,10 +30,12 @@ struct HomeView: View {
                             .accessibilityLabel(localizer("home.offline"))
                     }
                 }
-                SafeToSpendRing(month: budget.month(now: now), startsOnPayday: budget.startsOnPayday) {
+                SafeToSpendRing(month: month, startsOnPayday: budget.startsOnPayday) {
                     editor = .new(.income)
                 }
                 .padding(.top, LunexTheme.Spacing.space4)
+                SmartSaveCard(month: month) { goalEditor = .new }
+                    .padding(.top, LunexTheme.Spacing.space2)
             }
             .padding(.horizontal, LunexTheme.Spacing.space4)
         }
@@ -44,6 +49,12 @@ struct HomeView: View {
             await sync.sync()
             await session.refreshAccess()
             await plans.refresh()
+            await smartSave.refresh()
+        }
+        // Every sync may change the month (an operation here or on another iPhone).
+        .task(id: sync.lastSyncedAt) { await smartSave.refresh() }
+        .sheet(item: $goalEditor) { target in
+            GoalEditor(target: target)
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in now = .now }
         .onChange(of: scenePhase) { _, phase in

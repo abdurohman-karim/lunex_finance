@@ -17,6 +17,7 @@ public final class AppEnvironment {
     public let catalog: Catalog
     public let goals: GoalBook
     public let budgetPlans: BudgetPlans
+    public let smartSave: SmartSaveStore
     public let toasts = ToastCenter()
     public let localizer: Localizer
     public let container: ModelContainer
@@ -48,8 +49,10 @@ public final class AppEnvironment {
         self.goals = GoalBook(container: container, sync: sync)
         let budgetPlans = BudgetPlans(api: api)
         self.budgetPlans = budgetPlans
+        let smartSave = SmartSaveStore(api: api, sync: sync)
+        self.smartSave = smartSave
         // Signing out leaves nothing of the account on the device.
-        session.onSessionEnded = { sync.reset(); budgetPlans.reset() }
+        session.onSessionEnded = { sync.reset(); budgetPlans.reset(); smartSave.reset() }
         self.localizer = localizer
         self.container = container
         self.deviceId = deviceId
@@ -154,6 +157,7 @@ extension View {
             .environment(app.catalog)
             .environment(app.goals)
             .environment(app.budgetPlans)
+            .environment(app.smartSave)
             .environment(app.toasts)
             .environment(app.localizer)
             .modelContainer(app.container)
