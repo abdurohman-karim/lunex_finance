@@ -18,6 +18,7 @@ public final class AppEnvironment {
     public let goals: GoalBook
     public let budgetPlans: BudgetPlans
     public let smartSave: SmartSaveStore
+    public let firstSteps = FirstStepsStore()
     public let toasts = ToastCenter()
     public let localizer: Localizer
     public let container: ModelContainer
@@ -158,6 +159,7 @@ extension View {
             .environment(app.goals)
             .environment(app.budgetPlans)
             .environment(app.smartSave)
+            .environment(app.firstSteps)
             .environment(app.toasts)
             .environment(app.localizer)
             .modelContainer(app.container)

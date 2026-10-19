@@ -4,66 +4,6 @@ import SwiftUI
 
 // Tab roots. Each feature step of the build plan replaces its placeholder with the real screen.
 
-struct HomeView: View {
-    @Environment(SessionStore.self) private var session
-    @Environment(SyncEngine.self) private var sync
-    @Environment(BudgetPlans.self) private var plans
-    @Environment(SmartSaveStore.self) private var smartSave
-    @Environment(Localizer.self) private var localizer
-    @Environment(\.scenePhase) private var scenePhase
-    private var budget = BudgetQuery()
-    @State private var editor: TransactionEditor?
-    @State private var goalEditor: GoalEditorTarget?
-    @State private var now = Date.now
-
-    var body: some View {
-        let month = budget.month(now: now)
-        ScrollView {
-            VStack(spacing: LunexTheme.Spacing.space4) {
-                HStack {
-                    SectionLabel(now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(localizer.locale)))
-                    Spacer()
-                    if session.lastError?.isOffline == true {
-                        Label(localizer("home.offline"), systemImage: "wifi.slash")
-                            .labelStyle(.iconOnly)
-                            .foregroundStyle(LunexColor.inkMuted)
-                            .accessibilityLabel(localizer("home.offline"))
-                    }
-                }
-                SafeToSpendRing(month: month, startsOnPayday: budget.startsOnPayday) {
-                    editor = .new(.income)
-                }
-                .padding(.top, LunexTheme.Spacing.space4)
-                SmartSaveCard(month: month) { goalEditor = .new }
-                    .padding(.top, LunexTheme.Spacing.space2)
-            }
-            .padding(.horizontal, LunexTheme.Spacing.space4)
-        }
-        .background(LunexColor.paper)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button(localizer("home.addOperation"), systemImage: "plus") { editor = .new(.expense) }
-            }
-        }
-        .refreshable {
-            await sync.sync()
-            await session.refreshAccess()
-            await plans.refresh()
-            await smartSave.refresh()
-        }
-        // Every sync may change the month (an operation here or on another iPhone).
-        .task(id: sync.lastSyncedAt) { await smartSave.refresh() }
-        .sheet(item: $goalEditor) { target in
-            GoalEditor(target: target)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in now = .now }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { now = .now }
-        }
-        .transactionEditor($editor)
-    }
-}
-
 struct SettingsView: View {
     @Environment(SessionStore.self) private var session
     @Environment(SyncEngine.self) private var sync

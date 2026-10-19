@@ -297,6 +297,8 @@ struct TransactionRow: View {
     let account: AccountRecord?
     let target: AccountRecord?
     let baseCurrency: String
+    /// «Сегодня, 13:40» instead of «13:40», outside the history's day sections
+    var showsDay = false
     @Environment(Localizer.self) private var localizer
 
     var body: some View {
@@ -347,7 +349,7 @@ struct TransactionRow: View {
     }
 
     private var subtitle: String {
-        var parts = [record.occurredAt.formatted(.dateTime.hour().minute().locale(localizer.locale))]
+        var parts = [showsDay ? when : record.occurredAt.formatted(.dateTime.hour().minute().locale(localizer.locale))]
         if record.type == "transfer" {
             parts.append("\(account?.name ?? "—") → \(target?.name ?? "—")")
         } else if let account {
@@ -355,6 +357,15 @@ struct TransactionRow: View {
         }
         if let note = record.note, !note.isEmpty { parts.append(note) }
         return parts.joined(separator: " · ")
+    }
+
+    /// «Сегодня, 13:40», «Вчера, 09:15», «17 окт., 20:05».
+    private var when: String {
+        let time = record.occurredAt.formatted(.dateTime.hour().minute().locale(localizer.locale))
+        let calendar = Calendar.current
+        if calendar.isDateInToday(record.occurredAt) { return localizer("add.date.today") + ", " + time }
+        if calendar.isDateInYesterday(record.occurredAt) { return localizer("add.date.yesterday") + ", " + time }
+        return record.occurredAt.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(localizer.locale))
     }
 
     private var amount: String {

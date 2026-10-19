@@ -114,6 +114,8 @@ struct SafeToSpendRing: View {
 /// spending by category, and how the limit is worked out.
 struct BudgetView: View {
     @Environment(SyncEngine.self) private var sync
+    @Environment(SessionStore.self) private var session
+    @Environment(FirstStepsStore.self) private var firstSteps
     @Environment(BudgetPlans.self) private var plans
     @Environment(Localizer.self) private var localizer
     @Environment(\.scenePhase) private var scenePhase
@@ -155,6 +157,8 @@ struct BudgetView: View {
             await plans.refresh()
         }
         .task { await plans.refresh() }
+        // «Первые шаги»: the budget has been looked at.
+        .onAppear { if let user = session.profile?.id { firstSteps.markBudgetSeen(user) } }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in now = .now }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { now = .now }

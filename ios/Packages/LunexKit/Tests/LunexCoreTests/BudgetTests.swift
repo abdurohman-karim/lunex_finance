@@ -166,3 +166,33 @@ struct BudgetMonthTests {
         #expect(month.todayLeftShare == 1)
     }
 }
+
+@Suite("First steps")
+@MainActor
+struct FirstStepsTests {
+    @Test("the checklist counts what is done and offers the widget only once widgets exist")
+    func progress() {
+        let fresh = FirstStepsProgress(hasOperation: false, hasGoal: true, budgetSeen: false, hasWidget: false, widgetsAvailable: false)
+        #expect(fresh.items == [.operation, .goal, .budget])
+        #expect(fresh.doneCount == 1 && !fresh.isComplete && fresh.next == .operation)
+
+        let done = FirstStepsProgress(hasOperation: true, hasGoal: true, budgetSeen: true, hasWidget: false, widgetsAvailable: false)
+        #expect(done.isComplete && done.next == nil)
+
+        let withWidgets = FirstStepsProgress(hasOperation: true, hasGoal: true, budgetSeen: true, hasWidget: false, widgetsAvailable: true)
+        #expect(!withWidgets.isComplete && withWidgets.next == .widget)
+    }
+
+    @Test("seen budget and hidden checklist are remembered per account")
+    func store() {
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let me = UUID()
+        let other = UUID()
+        let first = FirstStepsStore(defaults: defaults)
+        first.markBudgetSeen(me)
+        first.dismiss(me)
+        let again = FirstStepsStore(defaults: defaults)
+        #expect(again.hasSeenBudget(me) && again.isDismissed(me))
+        #expect(!again.hasSeenBudget(other) && !again.isDismissed(other))
+    }
+}

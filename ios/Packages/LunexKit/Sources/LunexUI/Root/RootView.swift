@@ -71,13 +71,22 @@ enum AppTab: Hashable {
     case home, transactions, goals, budget, settings
 }
 
+/// The selected main tab, for screens that send the user to another one (the home screen's
+/// «Все», the month line, «Первые шаги»).
+@MainActor
+@Observable
+final class TabRouter {
+    var tab: AppTab = .home
+}
+
 struct MainTabView: View {
     @Environment(Localizer.self) private var localizer
     @Environment(ToastCenter.self) private var toasts
-    @State private var tab: AppTab = .home
+    @State private var router = TabRouter()
 
     var body: some View {
-        TabView(selection: $tab) {
+        @Bindable var router = router
+        TabView(selection: $router.tab) {
             Tab(localizer("tab.home"), systemImage: "house.fill", value: AppTab.home) {
                 NavigationStack { HomeView() }
             }
@@ -95,6 +104,7 @@ struct MainTabView: View {
             }
         }
         .toastHost(toasts)
+        .environment(router)
     }
 }
 
