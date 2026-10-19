@@ -20,6 +20,10 @@ import {
   type GoalDto,
   GoalsService,
 } from '../goals/goals.service.js';
+import {
+  ProfileService,
+  type SettingsDto,
+} from '../profile/profile.service.js';
 import { type Profile, UsersService } from '../users/users.service.js';
 import {
   SYNC_STREAMS,
@@ -42,6 +46,8 @@ export interface PullResult {
   transactions: TransactionDto[];
   goals: GoalDto[];
   goalContributions: ContributionDto[];
+  /** Present when the settings changed */
+  settings: SettingsDto | null;
   /** Send it back on the next pull */
   nextCursor: string;
   /** Pull again right away with nextCursor */
@@ -70,6 +76,7 @@ export class SyncService {
     private readonly categories: CategoriesService,
     private readonly transactions: TransactionsService,
     private readonly goals: GoalsService,
+    private readonly profile: ProfileService,
     config: ConfigService<Env, true>,
   ) {
     this.lagMs = config.get('SYNC_LAG_MS', { infer: true });
@@ -102,6 +109,7 @@ export class SyncService {
       transactions,
       goals,
       goalContributions,
+      settings,
     ] = await Promise.all([
       this.profileChanges(userId, window('profile')),
       this.accounts.changes(userId, window('accounts')),
@@ -110,6 +118,7 @@ export class SyncService {
       this.transactions.changes(userId, window('transactions')),
       this.goals.changes(userId, window('goals')),
       this.goals.contributionChanges(userId, window('goalContributions')),
+      this.profile.settingsChanges(userId, window('settings')),
     ]);
     const pages: Record<SyncStream, ChangesPage<unknown>> = {
       profile,
@@ -119,6 +128,7 @@ export class SyncService {
       transactions,
       goals,
       goalContributions,
+      settings,
     };
 
     const next: SyncCursor = {};
@@ -157,6 +167,7 @@ export class SyncService {
       transactions: transactions.items,
       goals: goals.items,
       goalContributions: goalContributions.items,
+      settings: settings.items[0] ?? null,
       nextCursor: encodeSyncCursor(next),
       hasMore,
       serverTime: now,
@@ -253,6 +264,10 @@ export class SyncService {
         return this.goals.contribute(userId, op.goalId, op.data);
       case 'goal.contribution.delete':
         return this.goals.removeContribution(userId, op.goalId, op.id);
+      case 'profile.update':
+        return this.profile.updateProfile(userId, op.data);
+      case 'settings.update':
+        return this.profile.updateSettings(userId, op.data);
     }
   }
 

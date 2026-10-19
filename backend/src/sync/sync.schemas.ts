@@ -17,6 +17,10 @@ import {
   createGoalSchema,
   updateGoalSchema,
 } from '../goals/goals.schemas.js';
+import {
+  updateProfileSchema,
+  updateSettingsSchema,
+} from '../profile/profile.schemas.js';
 
 const opId = z.string().min(1).max(64);
 const id = z.uuid();
@@ -83,6 +87,16 @@ export const syncOperationSchema = z.discriminatedUnion('type', [
     type: z.literal('goal.contribution.delete'),
     goalId,
     id,
+  }),
+  z.object({
+    opId,
+    type: z.literal('profile.update'),
+    data: updateProfileSchema,
+  }),
+  z.object({
+    opId,
+    type: z.literal('settings.update'),
+    data: updateSettingsSchema,
   }),
 ]);
 export type SyncOperation = z.infer<typeof syncOperationSchema>;

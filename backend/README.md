@@ -44,6 +44,21 @@ With `EMAIL_PROVIDER=console` the email login code is printed to the server log.
 - A sign-in whose provider returns a **verified** email that already belongs to an account is linked to that account.
 - Errors carry a stable `code` (`invalid_code`, `refresh_token_reused`, `identity_in_use`, `last_identity`, `rate_limited`, …) for the app to localise.
 
+## Onboarding, profile and settings
+
+| Endpoint | |
+| --- | --- |
+| `POST /v1/me/onboarding` | `{ cashAccountId, language?, baseCurrency?, timezone?, focus?, monthlyIncomeEstimate?, firstGoal? }` → `{ profile, account, goal, checklist }`; every step optional, safe to repeat |
+| `GET /v1/me/checklist` | «Первые шаги»: `firstTransaction`, `firstGoal`, `budget`, `completed` (the widget item is tracked by the app) |
+| `PATCH /v1/me` | `displayName`, `language`, `baseCurrency`, `timezone` (IANA), `monthlyIncomeEstimate`, `onboardingFocus` |
+| `GET` / `PATCH /v1/me/settings` | lock and `lockAfterSeconds`, `hideAmounts`, `weekStartsOn`, `monthStartsOnDay`, `defaultAccountId`, reminder time, quiet hours (`HH:MM`), notification toggles, haptics |
+| `PUT /v1/me/devices/current` | `{ apnsToken?, pushEnabled?, model?, osVersion?, appVersion? }` for the calling device |
+
+- Onboarding creates the cash account («Naqd pul» / «Наличные» / «Cash» in the base currency) unless accounts already came from another device, then the first goal, then marks onboarding done.
+- Changing the base currency re-values every operation's `amountBase` at the rate of its date, the income estimate and current budgets at today's rate — all or nothing: a missing rate answers 422 `exchange_rate_unavailable` and nothing changes.
+- An APNs token moves with a reinstall: another device that had it stops getting pushes.
+- Profile and settings sync too: streams `profile` and `settings`, operations `profile.update` and `settings.update`.
+
 ## Lunex Pro
 
 `GET /v1/me/access` returns the plan, its source (`monetization_off`, `trial`, `app_store`, `promo`, or `null` on Free), the trial, the Pro features and the limits. The app calls it on launch and on return from background.

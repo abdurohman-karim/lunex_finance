@@ -13,6 +13,7 @@ import { FinanceModule } from './finance/finance.module.js';
 import { GoalsModule } from './goals/goals.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MailModule } from './mail/mail.module.js';
+import { ProfileModule } from './profile/profile.module.js';
 import { QueueModule } from './queue/queue.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { SmartSaveModule } from './smart-save/smart-save.module.js';
@@ -60,6 +61,7 @@ import { SyncModule } from './sync/sync.module.js';
     BudgetModule,
     GoalsModule,
     SmartSaveModule,
+    ProfileModule,
     SyncModule,
     QueueModule,
     HealthModule,

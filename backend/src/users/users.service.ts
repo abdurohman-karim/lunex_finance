@@ -15,6 +15,7 @@ import { Prisma } from '../generated/prisma/client.js';
 import type {
   AuthProvider,
   LanguageCode,
+  OnboardingFocus,
   UserRole,
 } from '../generated/prisma/enums.js';
 
@@ -34,8 +35,12 @@ export interface Profile {
   baseCurrency: string;
   timezone: string;
   onboardingCompleted: boolean;
+  onboardingFocus: OnboardingFocus | null;
+  /** In the base currency; used by the budget until real income arrives */
+  monthlyIncomeEstimate: string | null;
   identities: AuthProvider[];
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface SignInResult {
@@ -239,7 +244,7 @@ export class UsersService {
     const user = await db.users.findUnique({
       where: { id: userId },
       include: {
-        baseCurrency: { select: { code: true } },
+        baseCurrency: { select: { code: true, decimals: true } },
         authIdentities: { select: { provider: true }, orderBy: { id: 'asc' } },
       },
     });
@@ -258,8 +263,13 @@ export class UsersService {
       baseCurrency: user.baseCurrency.code,
       timezone: user.timezone,
       onboardingCompleted: user.onboarding_completed_at !== null,
+      onboardingFocus: user.onboarding_focus,
+      monthlyIncomeEstimate:
+        user.monthly_income_estimate?.toFixed(user.baseCurrency.decimals) ??
+        null,
       identities: user.authIdentities.map((i) => i.provider),
       createdAt: user.created_at,
+      updatedAt: user.updated_at,
     };
   }
 
