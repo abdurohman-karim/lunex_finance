@@ -6,6 +6,7 @@ import { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { BudgetService } from '../src/budget/budget.service.js';
+import { AppSettingsService } from '../src/common/app-settings.service.js';
 import { PrismaService } from '../src/database/prisma.service.js';
 import { systemCategoryId } from '../src/database/reference-data.js';
 import { UsersService } from '../src/users/users.service.js';
@@ -236,6 +237,17 @@ describe('Budget (e2e)', () => {
 
   it('applies a planned budget: total limit, savings target and rollover', async () => {
     const { session, account } = await setup();
+    // September leaves 100 000: 400 000 earned, 300 000 spent.
+    await add(session, account, {
+      type: 'income',
+      amount: '400000',
+      occurredAt: '2026-09-02T04:00:00Z',
+    });
+    await add(session, account, {
+      type: 'expense',
+      amount: '300000',
+      occurredAt: '2026-09-10T04:00:00Z',
+    });
     await add(session, account, {
       type: 'income',
       amount: '10000000',
@@ -256,7 +268,6 @@ describe('Budget (e2e)', () => {
         total_limit: 2_600_000,
         savings_target: 2_000_000,
         rollover_enabled: true,
-        rollover_amount: 100_000,
       },
     });
 
@@ -342,5 +353,309 @@ describe('Budget (e2e)', () => {
     });
     expect(res.body.period.daysLeft).toBeGreaterThanOrEqual(1);
     await http.get('/v1/budget/current').expect(401);
+  });
+
+  describe('plans', () => {
+    const NOVEMBER = new Date('2026-11-03T09:00:00Z');
+
+    async function coffee(session: TestSession) {
+      const id = randomUUID();
+      await http
+        .post('/v1/categories')
+        .set(session.auth)
+        .send({
+          id,
+          type: 'expense',
+          name: 'Кофе',
+          icon: 'cup.and.saucer',
+          color: '#8C7B6B',
+          parentId: FOOD,
+        })
+        .expect(201);
+      return id;
+    }
+
+    it('repeats the plan in the next month and carries what was left', async () => {
+      const { session, account } = await setup();
+      const cup = await coffee(session);
+      await add(session, account, {
+        type: 'income',
+        amount: '6000000',
+        occurredAt: '2026-10-01T04:00:00Z',
+      });
+      await add(session, account, {
+        type: 'expense',
+        amount: '1000000',
+        categoryId: FOOD,
+        occurredAt: '2026-10-05T04:00:00Z',
+      });
+      await add(session, account, {
+        type: 'expense',
+        amount: '200000',
+        categoryId: cup,
+        occurredAt: '2026-10-06T04:00:00Z',
+      });
+
+      const october = await budget.setPlan(
+        session.userId,
+        {
+          plannedIncome: '6000000',
+          totalLimit: null,
+          savingsTarget: '500000',
+          rolloverEnabled: true,
+          categoryLimits: [
+            { categoryId: FOOD, limit: '1500000', alertThresholdPct: 80 },
+          ],
+        },
+        NOW,
+      );
+      expect(october).toMatchObject({
+        mode: 'planned',
+        savingsTarget: '500000',
+        rolloverEnabled: true,
+        // September had nothing to carry
+        rollover: '0',
+        // The limit of «Еда» counts its subcategory «Кофе»
+        categoryLimits: [
+          {
+            categoryId: FOOD,
+            limit: '1500000',
+            spent: '1200000',
+            alertThresholdPct: 80,
+          },
+        ],
+      });
+
+      const november = await budget.current(session.userId, NOVEMBER);
+      expect(november).toMatchObject({
+        period: { start: '2026-11-01', end: '2026-11-30' },
+        mode: 'planned',
+        income: { planned: '6000000' },
+        savingsTarget: '500000',
+        rolloverEnabled: true,
+        // October: 6 000 000 earned − 1 200 000 spent, nothing saved
+        rollover: '4800000',
+        categoryLimits: [{ categoryId: FOOD, limit: '1500000', spent: '0' }],
+      });
+
+      // An October expense added later changes what November carries.
+      await add(session, account, {
+        type: 'expense',
+        amount: '300000',
+        categoryId: TRANSPORT,
+        occurredAt: '2026-10-15T04:00:00Z',
+      });
+      expect((await budget.current(session.userId, NOVEMBER)).rollover).toBe(
+        '4500000',
+      );
+      expect(
+        await prisma.budgets.count({ where: { user_id: session.userId } }),
+      ).toBe(2);
+    });
+
+    it('takes the plan over HTTP and from the sync queue', async () => {
+      const { session } = await setup();
+      const res = await http
+        .put('/v1/budget/current')
+        .set(session.auth)
+        .send({ plannedIncome: '4000000', totalLimit: '3000000' })
+        .expect(200);
+      expect(res.body).toMatchObject({
+        mode: 'planned',
+        income: { planned: '4000000' },
+        totalLimit: '3000000',
+        savingsTarget: '0',
+        rolloverEnabled: false,
+        categoryLimits: [],
+      });
+
+      // The app sends ids in capitals.
+      const operation = {
+        opId: 'b1',
+        type: 'budget.set',
+        data: {
+          plannedIncome: null,
+          totalLimit: null,
+          savingsTarget: '200000',
+          categoryLimits: [
+            { categoryId: TRANSPORT.toUpperCase(), limit: '400000' },
+          ],
+        },
+      };
+      const push = () =>
+        http
+          .post('/v1/sync/push')
+          .set(session.auth)
+          .send({ operations: [operation] })
+          .expect(200);
+      const pushed = await push();
+      expect(pushed.body.results[0]).toMatchObject({ status: 'applied' });
+
+      const current = await http
+        .get('/v1/budget/current')
+        .set(session.auth)
+        .expect(200);
+      expect(current.body).toMatchObject({
+        totalLimit: null,
+        savingsTarget: '200000',
+        categoryLimits: [
+          { categoryId: TRANSPORT, limit: '400000', alertThresholdPct: 80 },
+        ],
+      });
+      // A resent queue sets the same plan again.
+      expect((await push()).body.results[0]).toMatchObject({
+        status: 'applied',
+      });
+      expect(
+        await prisma.budgetCategoryLimits.count({
+          where: { budget: { user_id: session.userId } },
+        }),
+      ).toBe(1);
+    });
+
+    it('accepts only expense categories of the account, once each', async () => {
+      const { session } = await setup();
+      const refuse = (categoryLimits: unknown[], code: string) =>
+        http
+          .put('/v1/budget/current')
+          .set(session.auth)
+          .send({ categoryLimits })
+          .expect(400)
+          .then((res) => expect(res.body.code).toBe(code));
+      await refuse([{ categoryId: SALARY, limit: '100' }], 'invalid_category');
+      await refuse(
+        [{ categoryId: randomUUID(), limit: '100' }],
+        'invalid_category',
+      );
+      await refuse(
+        [
+          { categoryId: FOOD, limit: '100' },
+          { categoryId: FOOD, limit: '200' },
+        ],
+        'duplicate_category',
+      );
+      await http
+        .put('/v1/budget/current')
+        .set(session.auth)
+        .send({ totalLimit: '0' })
+        .expect(400);
+    });
+
+    it('keeps category limits and carrying for Lunex Pro once monetization is on', async () => {
+      const settings = app.get(AppSettingsService);
+      const setting = await prisma.appSettings.findUniqueOrThrow({
+        where: { key: 'monetization_enabled' },
+      });
+      const { session } = await setup();
+      try {
+        await prisma.appSettings.update({
+          where: { key: 'monetization_enabled' },
+          data: { value: true },
+        });
+        settings.invalidate();
+        await prisma.subscriptions.updateMany({
+          where: { user_id: session.userId, source: 'trial' },
+          data: { expires_at: new Date(Date.now() - 60_000) },
+        });
+
+        const limits = await http
+          .put('/v1/budget/current')
+          .set(session.auth)
+          .send({ categoryLimits: [{ categoryId: FOOD, limit: '100000' }] })
+          .expect(403);
+        expect(limits.body).toMatchObject({
+          code: 'pro_required',
+          feature: 'category_limits',
+        });
+        const rollover = await http
+          .put('/v1/budget/current')
+          .set(session.auth)
+          .send({ rolloverEnabled: true })
+          .expect(403);
+        expect(rollover.body.feature).toBe('budget_rollover');
+        // The rest of the plan is free.
+        await http
+          .put('/v1/budget/current')
+          .set(session.auth)
+          .send({ plannedIncome: '5000000', savingsTarget: '1000000' })
+          .expect(200);
+      } finally {
+        await prisma.appSettings.update({
+          where: { key: 'monetization_enabled' },
+          data: { value: setting.value as boolean },
+        });
+        settings.invalidate();
+      }
+    });
+
+    it('suggests limits from the average of the last three months', async () => {
+      const { session, account } = await setup();
+      const cup = await coffee(session);
+      for (const month of ['07', '08', '09']) {
+        await add(session, account, {
+          type: 'income',
+          amount: '5000000',
+          occurredAt: `2026-${month}-02T04:00:00Z`,
+        });
+        await add(session, account, {
+          type: 'expense',
+          amount: '300000',
+          categoryId: FOOD,
+          occurredAt: `2026-${month}-12T04:00:00Z`,
+        });
+      }
+      await add(session, account, {
+        type: 'expense',
+        amount: '30000',
+        categoryId: cup,
+        occurredAt: '2026-08-14T04:00:00Z',
+      });
+      await add(session, account, {
+        type: 'expense',
+        amount: '100000',
+        categoryId: TRANSPORT,
+        occurredAt: '2026-09-20T04:00:00Z',
+      });
+      // This month and older months do not count.
+      await add(session, account, {
+        type: 'expense',
+        amount: '999000',
+        categoryId: FOOD,
+        occurredAt: '2026-10-03T04:00:00Z',
+      });
+      await add(session, account, {
+        type: 'expense',
+        amount: '999000',
+        categoryId: FOOD,
+        occurredAt: '2026-06-20T04:00:00Z',
+      });
+
+      expect(await budget.suggestions(session.userId, NOW)).toEqual({
+        months: 3,
+        currency: 'UZS',
+        income: '5000000',
+        // (900 000 + 30 000 + 100 000) / 3 = 343 333 → up to 344 000
+        expenses: '344000',
+        categories: [
+          // «Кофе» counts in «Еда»: 930 000 / 3
+          { categoryId: FOOD, amount: '310000' },
+          // 100 000 / 3 = 33 333 → 34 000
+          { categoryId: TRANSPORT, amount: '34000' },
+        ],
+      });
+
+      const fresh = await setup();
+      expect(await budget.suggestions(fresh.session.userId, NOW)).toEqual({
+        months: 0,
+        currency: 'UZS',
+        income: null,
+        expenses: null,
+        categories: [],
+      });
+      await http
+        .get('/v1/budget/suggestions')
+        .set(fresh.session.auth)
+        .expect(200);
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AuthUser } from '../auth/auth.types.js';
+import { BudgetService } from '../budget/budget.service.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../database/prisma.service.js';
 import {
@@ -77,6 +78,7 @@ export class SyncService {
     private readonly transactions: TransactionsService,
     private readonly goals: GoalsService,
     private readonly profile: ProfileService,
+    private readonly budget: BudgetService,
     config: ConfigService<Env, true>,
   ) {
     this.lagMs = config.get('SYNC_LAG_MS', { infer: true });
@@ -268,6 +270,8 @@ export class SyncService {
         return this.profile.updateProfile(userId, op.data);
       case 'settings.update':
         return this.profile.updateSettings(userId, op.data);
+      case 'budget.set':
+        return this.budget.setPlan(userId, op.data);
     }
   }
 

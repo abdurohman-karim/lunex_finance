@@ -92,3 +92,47 @@ export function computeBudget(inputs: BudgetInputs): BudgetFigures {
         : 'ok',
   };
 }
+
+/**
+ * What a closed budget month leaves for the next one (spec: «перенос остатка»). Real money only:
+ * the actual income, not the plan, plus what was carried in, minus net savings and spending.
+ * With a total limit, no more than the limit left unspent. Never negative: an overspent month
+ * carries nothing.
+ */
+export function budgetLeftover(inputs: {
+  incomeActual: Decimal;
+  rolloverIn: Decimal;
+  savedToGoals: Decimal;
+  expenses: Decimal;
+  totalLimit: Decimal | null;
+  decimals: number;
+}): Decimal {
+  const zero = new Decimal(0);
+  let left = inputs.incomeActual
+    .plus(inputs.rolloverIn)
+    .minus(Decimal.max(zero, inputs.savedToGoals))
+    .minus(inputs.expenses);
+  if (inputs.totalLimit) {
+    left = Decimal.min(left, inputs.totalLimit.minus(inputs.expenses));
+  }
+  return Decimal.max(zero, left).toDecimalPlaces(
+    inputs.decimals,
+    Decimal.ROUND_DOWN,
+  );
+}
+
+/**
+ * A monthly amount suggested from past months (limits in the budget wizard): the average over
+ * `months`, rounded up to the currency's step so a typical month fits. Nothing without history.
+ */
+export function suggestedMonthly(
+  total: Decimal,
+  months: number,
+  step: Decimal,
+): Decimal {
+  if (months <= 0 || total.lte(0)) return new Decimal(0);
+  const average = total.dividedBy(months);
+  return step.gt(0)
+    ? average.dividedBy(step).ceil().times(step)
+    : average.ceil();
+}

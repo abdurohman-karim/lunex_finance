@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { budgetPlanSchema } from '../budget/budget.schemas.js';
 import { reorderSchema, uuidSchema } from '../common/schemas.js';
 import {
   createAccountSchema,
@@ -97,6 +98,11 @@ export const syncOperationSchema = z.discriminatedUnion('type', [
     opId,
     type: z.literal('settings.update'),
     data: updateSettingsSchema,
+  }),
+  z.object({
+    opId,
+    type: z.literal('budget.set'),
+    data: budgetPlanSchema,
   }),
 ]);
 export type SyncOperation = z.infer<typeof syncOperationSchema>;
