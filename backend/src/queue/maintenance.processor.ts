@@ -3,6 +3,7 @@ import { Logger, OnApplicationBootstrap } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 import { EntitlementsService } from '../billing/entitlements.service.js';
 import { PrismaService } from '../database/prisma.service.js';
+import { RecurringService } from '../finance/recurring/recurring.service.js';
 import { SmartSaveService } from '../smart-save/smart-save.service.js';
 import { UsersService } from '../users/users.service.js';
 import {
@@ -24,6 +25,7 @@ export class MaintenanceProcessor
     private readonly users: UsersService,
     private readonly entitlements: EntitlementsService,
     private readonly smartSave: SmartSaveService,
+    private readonly recurring: RecurringService,
   ) {
     super();
   }
@@ -50,6 +52,11 @@ export class MaintenanceProcessor
       { pattern: '0 * * * *' },
       { name: MaintenanceJob.SmartSaveHourly },
     );
+    await this.queue.upsertJobScheduler(
+      MaintenanceJob.RecurringHourly,
+      { pattern: '5 * * * *' },
+      { name: MaintenanceJob.RecurringHourly },
+    );
   }
 
   async process(job: Job): Promise<unknown> {
@@ -66,6 +73,8 @@ export class MaintenanceProcessor
         const prepared = await this.smartSave.prepareMorningSuggestions(now);
         return { ...expired, ...prepared };
       }
+      case MaintenanceJob.RecurringHourly:
+        return this.recurring.runDue();
       default:
         throw new Error(`Unknown maintenance job: ${job.name}`);
     }

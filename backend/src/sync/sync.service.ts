@@ -2,6 +2,10 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AuthUser } from '../auth/auth.types.js';
 import { BudgetService } from '../budget/budget.service.js';
+import {
+  type RecurringRuleDto,
+  RecurringService,
+} from '../finance/recurring/recurring.service.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../database/prisma.service.js';
 import {
@@ -47,6 +51,7 @@ export interface PullResult {
   transactions: TransactionDto[];
   goals: GoalDto[];
   goalContributions: ContributionDto[];
+  recurringRules: RecurringRuleDto[];
   /** Present when the settings changed */
   settings: SettingsDto | null;
   /** Send it back on the next pull */
@@ -79,6 +84,7 @@ export class SyncService {
     private readonly goals: GoalsService,
     private readonly profile: ProfileService,
     private readonly budget: BudgetService,
+    private readonly recurring: RecurringService,
     config: ConfigService<Env, true>,
   ) {
     this.lagMs = config.get('SYNC_LAG_MS', { infer: true });
@@ -93,6 +99,8 @@ export class SyncService {
     cursorValue: string | undefined,
     limit: number,
   ): Promise<PullResult> {
+    // Runs of recurring payments missed meanwhile are made first, so this pull has them.
+    await this.recurring.runDue(new Date(), user.userId);
     const now = new Date();
     const horizon = new Date(now.getTime() - this.lagMs);
     const cursor: SyncCursor = cursorValue ? decodeSyncCursor(cursorValue) : {};
@@ -112,6 +120,7 @@ export class SyncService {
       goals,
       goalContributions,
       settings,
+      recurringRules,
     ] = await Promise.all([
       this.profileChanges(userId, window('profile')),
       this.accounts.changes(userId, window('accounts')),
@@ -121,6 +130,7 @@ export class SyncService {
       this.goals.changes(userId, window('goals')),
       this.goals.contributionChanges(userId, window('goalContributions')),
       this.profile.settingsChanges(userId, window('settings')),
+      this.recurring.changes(userId, window('recurringRules')),
     ]);
     const pages: Record<SyncStream, ChangesPage<unknown>> = {
       profile,
@@ -131,6 +141,7 @@ export class SyncService {
       goals,
       goalContributions,
       settings,
+      recurringRules,
     };
 
     const next: SyncCursor = {};
@@ -169,6 +180,7 @@ export class SyncService {
       transactions: transactions.items,
       goals: goals.items,
       goalContributions: goalContributions.items,
+      recurringRules: recurringRules.items,
       settings: settings.items[0] ?? null,
       nextCursor: encodeSyncCursor(next),
       hasMore,
@@ -272,6 +284,16 @@ export class SyncService {
         return this.profile.updateSettings(userId, op.data);
       case 'budget.set':
         return this.budget.setPlan(userId, op.data);
+      case 'recurring.create':
+        return this.recurring.create(userId, op.data);
+      case 'recurring.update':
+        return this.recurring.update(userId, op.id, op.data);
+      case 'recurring.delete':
+        return this.recurring.remove(userId, op.id).then(() => null);
+      case 'recurring.record':
+        return this.recurring.record(userId, op.id, op.data);
+      case 'recurring.skip':
+        return this.recurring.skip(userId, op.id, op.data);
     }
   }
 

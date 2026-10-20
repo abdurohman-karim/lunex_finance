@@ -1,8 +1,4 @@
 import {
-  occurrencesBetween,
-  type RecurrenceRule,
-} from '../finance/recurrence.js';
-import {
   addDays,
   clampedDate,
   daysBetween,
@@ -55,66 +51,5 @@ describe('calendar dates', () => {
         'Asia/Tashkent',
       ),
     ).toBe('2026-10-19');
-  });
-});
-
-describe('occurrencesBetween', () => {
-  const rule = (overrides: Partial<RecurrenceRule>): RecurrenceRule => ({
-    frequency: 'monthly',
-    interval: 1,
-    dayOfMonth: null,
-    startOn: '2026-01-31',
-    endOn: null,
-    nextRunOn: '2026-01-31',
-    ...overrides,
-  });
-
-  it('keeps a monthly rule on its day, using the last day of short months', () => {
-    expect(occurrencesBetween(rule({}), '2026-01-01', '2026-04-30')).toEqual([
-      '2026-01-31',
-      '2026-02-28',
-      '2026-03-31',
-      '2026-04-30',
-    ]);
-  });
-
-  it('starts from the next pending run and stops at the end date', () => {
-    const weekly = rule({
-      frequency: 'weekly',
-      startOn: '2026-10-05',
-      nextRunOn: '2026-10-19',
-      endOn: '2026-10-30',
-    });
-    expect(occurrencesBetween(weekly, '2026-10-01', '2026-12-31')).toEqual([
-      '2026-10-19',
-      '2026-10-26',
-    ]);
-  });
-
-  it('skips runs before the window and honours the interval', () => {
-    const everyTwoDays = rule({
-      frequency: 'daily',
-      interval: 2,
-      startOn: '2026-10-15',
-      nextRunOn: '2026-10-15',
-    });
-    expect(
-      occurrencesBetween(everyTwoDays, '2026-10-18', '2026-10-22'),
-    ).toEqual(['2026-10-19', '2026-10-21']);
-  });
-
-  it('handles yearly rules on 29 February', () => {
-    const leap = rule({
-      frequency: 'yearly',
-      startOn: '2028-02-29',
-      nextRunOn: '2029-02-28',
-      dayOfMonth: 29,
-    });
-    expect(occurrencesBetween(leap, '2029-01-01', '2032-12-31')).toEqual([
-      '2029-02-28',
-      '2030-02-28',
-      '2031-02-28',
-      '2032-02-29',
-    ]);
   });
 });

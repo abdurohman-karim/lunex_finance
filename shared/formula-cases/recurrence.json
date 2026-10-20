@@ -1,0 +1,53 @@
+{
+  "about": "Spec «Бизнес-правила», регулярные платежи: runs of a rule (every N days, weeks, months or years; days 29–31 move to the last day of shorter months, a monthly or yearly rule keeps its own day). `occurrences` lists pending runs within [from, to], starting from the rule's next run; `firstOnOrAfter` is the first run of a rule on or after a day, counted from its start.",
+  "occurrences": [
+    {
+      "name": "a monthly rule keeps its day, using the last day of short months",
+      "rule": { "frequency": "monthly", "interval": 1, "dayOfMonth": null, "startOn": "2026-01-31", "endOn": null, "nextRunOn": "2026-01-31" },
+      "from": "2026-01-01", "to": "2026-04-30",
+      "dates": ["2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30"]
+    },
+    {
+      "name": "runs start from the next pending one and stop at the end date",
+      "rule": { "frequency": "weekly", "interval": 1, "dayOfMonth": null, "startOn": "2026-10-05", "endOn": "2026-10-30", "nextRunOn": "2026-10-19" },
+      "from": "2026-10-01", "to": "2026-12-31",
+      "dates": ["2026-10-19", "2026-10-26"]
+    },
+    {
+      "name": "runs before the window are skipped and the interval is kept",
+      "rule": { "frequency": "daily", "interval": 2, "dayOfMonth": null, "startOn": "2026-10-15", "endOn": null, "nextRunOn": "2026-10-15" },
+      "from": "2026-10-18", "to": "2026-10-22",
+      "dates": ["2026-10-19", "2026-10-21"]
+    },
+    {
+      "name": "a yearly rule on 29 February",
+      "rule": { "frequency": "yearly", "interval": 1, "dayOfMonth": 29, "startOn": "2028-02-29", "endOn": null, "nextRunOn": "2029-02-28" },
+      "from": "2029-01-01", "to": "2032-12-31",
+      "dates": ["2029-02-28", "2030-02-28", "2031-02-28", "2032-02-29"]
+    },
+    {
+      "name": "every two months",
+      "rule": { "frequency": "monthly", "interval": 2, "dayOfMonth": 10, "startOn": "2026-01-10", "endOn": null, "nextRunOn": "2026-09-10" },
+      "from": "2026-09-01", "to": "2027-01-31",
+      "dates": ["2026-09-10", "2026-11-10", "2027-01-10"]
+    },
+    {
+      "name": "nothing after the end date",
+      "rule": { "frequency": "monthly", "interval": 1, "dayOfMonth": null, "startOn": "2026-01-05", "endOn": "2026-09-30", "nextRunOn": "2026-10-05" },
+      "from": "2026-10-01", "to": "2026-12-31",
+      "dates": []
+    }
+  ],
+  "firstOnOrAfter": [
+    { "name": "a start in the future is the first run", "rule": { "frequency": "monthly", "interval": 1, "dayOfMonth": null, "startOn": "2026-11-10" }, "from": "2026-10-20", "expected": "2026-11-10" },
+    { "name": "a monthly rule from a past start", "rule": { "frequency": "monthly", "interval": 1, "dayOfMonth": null, "startOn": "2026-01-15" }, "from": "2026-10-20", "expected": "2026-11-15" },
+    { "name": "today is a run day", "rule": { "frequency": "monthly", "interval": 1, "dayOfMonth": null, "startOn": "2026-09-20" }, "from": "2026-10-20", "expected": "2026-10-20" },
+    { "name": "the 31st falls on the end of February", "rule": { "frequency": "monthly", "interval": 1, "dayOfMonth": null, "startOn": "2026-01-31" }, "from": "2026-02-01", "expected": "2026-02-28" },
+    { "name": "a payment day before the start's day begins next month", "rule": { "frequency": "monthly", "interval": 1, "dayOfMonth": 5, "startOn": "2026-10-20" }, "from": "2026-10-20", "expected": "2026-11-05" },
+    { "name": "a payment day after the start's day begins this month", "rule": { "frequency": "monthly", "interval": 1, "dayOfMonth": 25, "startOn": "2026-10-20" }, "from": "2026-10-20", "expected": "2026-10-25" },
+    { "name": "every two months from the start", "rule": { "frequency": "monthly", "interval": 2, "dayOfMonth": null, "startOn": "2026-01-10" }, "from": "2026-10-20", "expected": "2026-11-10" },
+    { "name": "a weekly rule from a past start", "rule": { "frequency": "weekly", "interval": 1, "dayOfMonth": null, "startOn": "2026-10-05" }, "from": "2026-10-20", "expected": "2026-10-26" },
+    { "name": "every three days", "rule": { "frequency": "daily", "interval": 3, "dayOfMonth": null, "startOn": "2026-10-01" }, "from": "2026-10-20", "expected": "2026-10-22" },
+    { "name": "a yearly rule on 29 February in a common year", "rule": { "frequency": "yearly", "interval": 1, "dayOfMonth": 29, "startOn": "2028-02-29" }, "from": "2029-01-01", "expected": "2029-02-28" }
+  ]
+}

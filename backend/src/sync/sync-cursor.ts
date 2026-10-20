@@ -11,6 +11,7 @@ export const SYNC_STREAMS = [
   'goals',
   'goalContributions',
   'settings',
+  'recurringRules',
 ] as const;
 export type SyncStream = (typeof SYNC_STREAMS)[number];
 

@@ -1,4 +1,9 @@
-import { type CalendarDate, addDays, clampedDate } from '../common/dates.js';
+import {
+  type CalendarDate,
+  addDays,
+  clampedDate,
+  daysBetween,
+} from '../common/dates.js';
 import type { RecurrenceFrequency } from '../generated/prisma/enums.js';
 
 export interface RecurrenceRule {
@@ -51,4 +56,45 @@ export function occurrencesBetween(
     date = nextOccurrence(rule, date);
   }
   return result;
+}
+
+/** What fixes a rule's run days, without its progress. */
+export type RecurrenceSchedule = Pick<
+  RecurrenceRule,
+  'frequency' | 'interval' | 'dayOfMonth' | 'startOn'
+>;
+
+/**
+ * The rule's first run on or after `from`, counted from its start: a new rule's next run.
+ * A monthly or yearly rule runs on its own day, so a payment day before the start's day
+ * begins the next month (or year).
+ */
+export function firstOnOrAfter(
+  rule: RecurrenceSchedule,
+  from: CalendarDate,
+): CalendarDate {
+  const step = Math.max(1, rule.interval);
+  const [year, month] = rule.startOn.split('-').map(Number);
+  const anchorDay = rule.dayOfMonth ?? Number(rule.startOn.slice(8, 10));
+  let first = rule.startOn;
+  if (rule.frequency === 'monthly' || rule.frequency === 'yearly') {
+    first = clampedDate(year, month, anchorDay);
+    if (first < rule.startOn) {
+      first =
+        rule.frequency === 'monthly'
+          ? clampedDate(year, month + 1, anchorDay)
+          : clampedDate(year + 1, month, anchorDay);
+    }
+  }
+  if (first >= from) return first;
+
+  if (rule.frequency === 'daily' || rule.frequency === 'weekly') {
+    const days = (rule.frequency === 'daily' ? 1 : 7) * step;
+    return addDays(first, Math.ceil(daysBetween(first, from) / days) * days);
+  }
+  let date = first;
+  for (let i = 0; i < MAX_OCCURRENCES && date < from; i++) {
+    date = nextOccurrence({ ...rule, endOn: null, nextRunOn: date }, date);
+  }
+  return date;
 }

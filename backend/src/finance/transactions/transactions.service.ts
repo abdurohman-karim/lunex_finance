@@ -163,6 +163,11 @@ const notFound = () =>
     message: 'Operation not found',
   });
 
+/** What the API accepts, plus sources only the server sets (`recurring`). */
+export type NewTransaction = Omit<CreateTransactionInput, 'source'> & {
+  source: TransactionSource;
+};
+
 const bad = (code: string, message: string) =>
   new BadRequestException({ code, message });
 
@@ -284,10 +289,14 @@ export class TransactionsService {
 
   // ---------- Writing ----------
 
-  /** Idempotent: the same id again returns the first result and does not move balances twice. */
+  /**
+   * Idempotent: the same id again returns the first result and does not move balances twice.
+   * `recurringRuleId` links an operation a recurring payment created.
+   */
   async create(
     userId: string,
-    input: CreateTransactionInput,
+    input: NewTransaction,
+    options: { recurringRuleId?: string } = {},
   ): Promise<TransactionDto> {
     const user = await this.userContext(userId);
     const existing = await this.findExisting(userId, input.id, user);
@@ -315,6 +324,7 @@ export class TransactionsService {
             id: input.id,
             user_id: userId,
             source: input.source,
+            recurring_rule_id: options.recurringRuleId ?? null,
           },
           include,
         });

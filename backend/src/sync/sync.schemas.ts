@@ -10,6 +10,12 @@ import {
   updateCategorySchema,
 } from '../finance/categories/categories.schemas.js';
 import {
+  createRecurringSchema,
+  recordRecurringSchema,
+  skipRecurringSchema,
+  updateRecurringSchema,
+} from '../finance/recurring/recurring.schemas.js';
+import {
   createTransactionSchema,
   updateTransactionSchema,
 } from '../finance/transactions/transactions.schemas.js';
@@ -103,6 +109,30 @@ export const syncOperationSchema = z.discriminatedUnion('type', [
     opId,
     type: z.literal('budget.set'),
     data: budgetPlanSchema,
+  }),
+  z.object({
+    opId,
+    type: z.literal('recurring.create'),
+    data: createRecurringSchema,
+  }),
+  z.object({
+    opId,
+    type: z.literal('recurring.update'),
+    id,
+    data: updateRecurringSchema,
+  }),
+  z.object({ opId, type: z.literal('recurring.delete'), id }),
+  z.object({
+    opId,
+    type: z.literal('recurring.record'),
+    id,
+    data: recordRecurringSchema,
+  }),
+  z.object({
+    opId,
+    type: z.literal('recurring.skip'),
+    id,
+    data: skipRecurringSchema,
   }),
 ]);
 export type SyncOperation = z.infer<typeof syncOperationSchema>;
