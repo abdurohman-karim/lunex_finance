@@ -1,6 +1,7 @@
-# Production stack on the server (/home/lunex): the API, PostgreSQL, Redis and Caddy, which
-# serves https://api.lunex.my with certificates from Let's Encrypt. deploy.sh copies this file,
-# the Caddyfile and backend/ there; secrets live in /home/lunex/.env (see .env.example).
+# Production stack on the server (/home/lunex/app): the API, PostgreSQL and Redis. The server
+# runs HestiaCP, whose nginx owns ports 80/443 and serves https://api.lunex.my with a Let's
+# Encrypt certificate, proxying to the API on 127.0.0.1:3100 (template in hestia/).
+# deploy.sh copies this file and backend/ there; secrets live in .env next to it.
 name: lunex
 
 services:
@@ -8,12 +9,15 @@ services:
     build: ./backend
     restart: unless-stopped
     env_file: .env
+    # Only the host's nginx reaches it
+    ports:
+      - '127.0.0.1:3100:3000'
     environment:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgresql://lunex:${POSTGRES_PASSWORD}@postgres:5432/lunex
       REDIS_URL: redis://redis:6379
-      # Caddy is the one proxy in front
+      # nginx is the one proxy in front
       TRUST_PROXY: 1
     depends_on:
       postgres:
@@ -54,22 +58,6 @@ services:
       timeout: 3s
       retries: 10
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - '80:80'
-      - '443:443'
-      - '443:443/udp'
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on:
-      - api
-
 volumes:
   postgres-data:
   redis-data:
-  caddy-data:
-  caddy-config:

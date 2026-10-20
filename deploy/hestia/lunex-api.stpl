@@ -1,0 +1,42 @@
+#=========================================================================#
+# Lunex API — HestiaCP nginx proxy template (HTTPS).                       #
+# The API runs in Docker on 127.0.0.1:3100 (deploy/compose.yaml).         #
+# Installed and applied by deploy/hestia/setup.sh.                         #
+#=========================================================================#
+
+server {
+	listen      %ip%:%proxy_ssl_port% ssl;
+	server_name %domain_idn% %alias_idn%;
+	error_log   /var/log/%web_system%/domains/%domain%.error.log error;
+
+	ssl_certificate     %ssl_pem%;
+	ssl_certificate_key %ssl_key%;
+
+	# TLS 1.3 0-RTT anti-replay
+	if ($anti_replay = 307) { return 307 https://$host$request_uri; }
+	if ($anti_replay = 425) { return 425; }
+
+	include %home%/%user%/conf/web/%domain%/nginx.hsts.conf*;
+
+	# Sync batches are small; receipt photos (later) stay well under this.
+	client_max_body_size 10m;
+
+	location ~ /\.(?!well-known\/|file) {
+		deny all;
+		return 404;
+	}
+
+	location / {
+		proxy_pass         http://127.0.0.1:3100;
+		proxy_http_version 1.1;
+		proxy_set_header   Host $host;
+		proxy_set_header   X-Real-IP $remote_addr;
+		proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header   X-Forwarded-Proto $scheme;
+		proxy_read_timeout 60s;
+	}
+
+	access_log /var/log/%web_system%/domains/%domain%.log combined;
+
+	include %home%/%user%/conf/web/%domain%/nginx.ssl.conf_*;
+}

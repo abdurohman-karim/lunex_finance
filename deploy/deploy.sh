@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Deploys the backend to the production server: copies backend/ and this folder's stack to
-# /home/lunex, creates .env with fresh secrets on the first run, rebuilds and restarts.
+# /home/lunex/app, creates .env with fresh secrets on the first run, rebuilds and restarts.
+# The domain itself (nginx and the certificate in HestiaCP) is set up once by hestia/setup.sh.
 #
 #   deploy/deploy.sh
 #
@@ -11,7 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 server="${LUNEX_SERVER:-root@79.132.143.211}"
 key="${LUNEX_SSH_KEY:-$HOME/.ssh/lunex_deploy}"
-dir=/home/lunex
+dir=/home/lunex/app
 ssh_opts=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes)
 
 echo "▸ Copying to $server:$dir"
@@ -20,7 +21,7 @@ rsync -az --delete -e "ssh ${ssh_opts[*]}" \
   --exclude node_modules --exclude dist --exclude coverage --exclude 'src/generated' \
   --exclude '.env' --exclude '.env.*' --exclude '*.tsbuildinfo' \
   backend/ "$server:$dir/backend/"
-rsync -az -e "ssh ${ssh_opts[*]}" deploy/compose.yaml deploy/Caddyfile deploy/.env.example "$server:$dir/"
+rsync -az -e "ssh ${ssh_opts[*]}" deploy/compose.yaml deploy/.env.example "$server:$dir/"
 
 echo "▸ Building and starting"
 ssh "${ssh_opts[@]}" "$server" bash -s <<REMOTE
@@ -48,5 +49,5 @@ for _ in $(seq 1 40); do
   fi
   sleep 5
 done
-echo "✗ Not ready yet; see: ssh -i $key $server 'cd $dir && docker compose logs --tail 100 api caddy'" >&2
+echo "✗ Not ready yet; see: ssh -i $key $server 'cd $dir && docker compose logs --tail 100 api'" >&2
 exit 1
