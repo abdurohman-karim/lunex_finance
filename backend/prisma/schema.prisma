@@ -948,7 +948,7 @@ model AiUsageDaily {
 }
 
 model AppSettings {
-  /// monetization_enabled, trial_days, ai_daily_limit_free, ai_daily_limit_pro, free_max_accounts, free_max_goals, smart_save_share
+  /// monetization_enabled, trial_days, ai_daily_limit_free, ai_daily_limit_pro, ai_daily_limit_parse, ai_daily_limit_receipt, free_max_accounts, free_max_goals, smart_save_share
   key         String   @id @db.VarChar(64)
   value       Json
   description String?  @db.VarChar(255)
