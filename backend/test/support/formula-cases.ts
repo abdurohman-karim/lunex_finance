@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs';
 import { Prisma } from '../../src/generated/prisma/client.js';
 
 /**
- * Examples in `shared/formula-cases/` at the repository root. The iOS app's tests
- * (`FormulaCasesTests.swift`) read the same files: both sides must give the same figures.
+ * Examples in `shared/formula-cases/` at the repository root. The iOS app's repository
+ * (lunex_app) keeps the same files at the same path for `FormulaCasesTests.swift`: both
+ * sides must give the same figures, so a change here goes there too.
  */
 const directory = new URL('../../../shared/formula-cases/', import.meta.url);
 

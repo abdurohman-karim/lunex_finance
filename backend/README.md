@@ -1,6 +1,6 @@
 # Lunex Finance — backend
 
-REST API for the Lunex Finance iOS app. NestJS 12 (ESM), Prisma 7 with the `pg` driver adapter, PostgreSQL 18, Redis 8 + BullMQ, Sentry.
+REST API for the Lunex Finance iOS app, which lives in its own repository, [lunex_app](https://github.com/abdurohman-karim/lunex_app). Production: `https://api.lunex.my/v1` (see `../deploy/`). NestJS 12 (ESM), Prisma 7 with the `pg` driver adapter, PostgreSQL 18, Redis 8 + BullMQ, Sentry.
 
 The product spec and the database schema live in Coddle (see `../AGENTS.md`). `prisma/schema.prisma` is exported from the Coddle schema; change the schema there first, then here.
 
