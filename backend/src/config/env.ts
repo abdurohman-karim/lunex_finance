@@ -83,6 +83,13 @@ export const envSchema = z
       .union([z.url(), z.literal('')])
       .default('https://cbu.uz/oz/arkhiv-kursov-valyut/json'),
 
+    /** Claude API key; AI features answer `ai_unavailable` without it */
+    ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+    /** The assistant and reports */
+    CLAUDE_MODEL_SMART: z.string().min(1).default('claude-sonnet-5-5'),
+    /** Parsing voice and text input and receipts */
+    CLAUDE_MODEL_FAST: z.string().min(1).default('claude-haiku-5-5'),
+
     /** Redis key prefix of the job queues; tests use their own so a running server ignores them */
     QUEUE_PREFIX: z.string().min(1).default('lunex'),
 

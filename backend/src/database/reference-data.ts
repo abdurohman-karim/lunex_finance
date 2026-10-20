@@ -312,6 +312,15 @@ export const DEFAULT_APP_SETTINGS = {
     value: 50,
     description: 'Сообщений AI-ассистенту в день на Pro',
   },
+  ai_daily_limit_parse: {
+    value: 100,
+    description:
+      'Разборов голосового и текстового ввода в день (защита от злоупотреблений)',
+  },
+  ai_daily_limit_receipt: {
+    value: 30,
+    description: 'Распознаваний чеков на сервере в день',
+  },
   free_max_accounts: { value: 2, description: 'Максимум счетов на Free' },
   free_max_goals: { value: 3, description: 'Максимум активных целей на Free' },
   smart_save_share: {

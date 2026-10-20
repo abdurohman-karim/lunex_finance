@@ -30,6 +30,8 @@ export default defineConfig({
       CBU_RATES_URL: '',
       // Tests read their own writes right away.
       SYNC_LAG_MS: '0',
+      // No calls to Claude: AI tests hand in a model of their own.
+      ANTHROPIC_API_KEY: '',
     },
   },
 });

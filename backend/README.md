@@ -159,6 +159,18 @@ Rules (Lunex Pro) that move money into a goal by themselves, from a source accou
 - A contribution never goes past the goal's target; with too little money on the account it is skipped and `auto_save_skipped` is pushed. A reached, archived or deleted goal, or a gone account, stops the rule. Contribution ids come from the rule and the day or operation, so nothing is set aside twice.
 - Each run that saves pushes a quiet `auto_save_done` (no sound, passive), once a day per rule; both are outside the daily limit and follow «Этапы и сроки целей». Rules sync as `autoSaveRules` and change through `autoSave.create|update|delete`.
 
+## AI usage and limits
+
+Every call to Claude goes through `AiService.ask(userId, feature, request)` (`src/ai`): Pro features first, then one of the day's requests, then the model (`claude-sonnet-5-5` for the assistant and reports, `claude-haiku-5-5` for parsing input and receipts; `ANTHROPIC_API_KEY`, `CLAUDE_MODEL_SMART|FAST`), then its tokens.
+
+| Endpoint | |
+| --- | --- |
+| `GET /v1/ai/usage` | `{ available, date, resetsAt, features: [{ feature, used, limit, remaining }] }` for `assistant`, `parse_input`, `receipt`, `insight` |
+
+- `ai_usage_daily` holds requests and input/output tokens per user, day (the user's time zone, reset at their midnight) and feature; cached input counts as input.
+- Limits a day: the assistant `ai_daily_limit_free` (5) / `ai_daily_limit_pro` (50) by plan; voice/text parsing `ai_daily_limit_parse` (100) and receipts `ai_daily_limit_receipt` (30) as fair-use caps, both Lunex Pro (`voice_input`, `receipt_scan`); insights the server makes itself, none. Administrators change them in `app_settings`.
+- A request takes its place before the model is called, in one statement (`INSERT … ON CONFLICT … WHERE requests < limit`), so parallel requests cannot pass the limit; a full day answers 429 `ai_limit_reached` with `limit` and `resetsAt`. A failed call gives its place back: 502 `ai_failed` (the model did not answer after the SDK's retries) or 503 `ai_unavailable` (no key).
+
 ## Smart Save
 
 | Endpoint | |

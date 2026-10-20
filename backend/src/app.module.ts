@@ -4,6 +4,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { LoggerModule } from 'nestjs-pino';
 import { AuthModule } from './auth/auth.module.js';
+import { AiModule } from './ai/ai.module.js';
 import { AutoSaveModule } from './auto-save/auto-save.module.js';
 import { BillingModule } from './billing/billing.module.js';
 import { BudgetModule } from './budget/budget.module.js';
@@ -62,6 +63,7 @@ import { SyncModule } from './sync/sync.module.js';
     BudgetModule,
     GoalsModule,
     AutoSaveModule,
+    AiModule,
     SmartSaveModule,
     ProfileModule,
     SyncModule,

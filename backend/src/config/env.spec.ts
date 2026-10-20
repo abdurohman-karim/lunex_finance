@@ -32,6 +32,9 @@ describe('validateEnv', () => {
       APNS_TOPIC: 'uz.lunex.finance',
       APNS_ENVIRONMENT: 'production',
       SIMULATOR_DEVICE: 'booted',
+      ANTHROPIC_API_KEY: undefined,
+      CLAUDE_MODEL_SMART: 'claude-sonnet-5-5',
+      CLAUDE_MODEL_FAST: 'claude-haiku-5-5',
       QUEUE_PREFIX: 'lunex',
       CBU_RATES_URL: 'https://cbu.uz/oz/arkhiv-kursov-valyut/json',
     });
