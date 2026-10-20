@@ -1,63 +1,25 @@
-# Production stack on the server (/home/lunex/app): the API, PostgreSQL and Redis. The server
-# runs HestiaCP, whose nginx owns ports 80/443 and serves https://api.lunex.my with a Let's
-# Encrypt certificate, proxying to the API on 127.0.0.1:3100 (template in hestia/).
-# deploy.sh copies this file and backend/ there; secrets live in .env next to it.
+# Production on the server (/home/lunex/app): the API only. The server's PostgreSQL (database
+# lunex_db) and Redis (database 10) are shared by all its projects and listen on 127.0.0.1, so
+# the API joins the host network and listens on 127.0.0.1:3100; HestiaCP's nginx serves
+# https://api.lunex.my in front of it (template in hestia/). deploy.sh copies this folder and
+# backend/ there; setup.sh prepares the domain, the database and .env.
 name: lunex
 
 services:
   api:
     build: ./backend
     restart: unless-stopped
+    network_mode: host
     env_file: .env
-    # Only the host's nginx reaches it
-    ports:
-      - '127.0.0.1:3100:3000'
     environment:
       NODE_ENV: production
-      PORT: 3000
-      DATABASE_URL: postgresql://lunex:${POSTGRES_PASSWORD}@postgres:5432/lunex
-      REDIS_URL: redis://redis:6379
+      HOST: 127.0.0.1
+      PORT: 3100
       # nginx is the one proxy in front
       TRUST_PROXY: 1
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
-      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3100/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 15s
       timeout: 5s
       start_period: 90s
       retries: 5
-
-  postgres:
-    image: postgres:18-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: lunex
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: lunex
-    volumes:
-      - postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U lunex -d lunex']
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  redis:
-    image: redis:8-alpine
-    restart: unless-stopped
-    command: ['redis-server', '--appendonly', 'yes']
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-volumes:
-  postgres-data:
-  redis-data:

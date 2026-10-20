@@ -190,7 +190,7 @@ npm run test:e2e    # needs compose services, migrations and seed
 
 ## Deploy
 
-Production runs at `https://api.lunex.my` on 79.132.143.211, a shared server managed by HestiaCP. The stack in `../deploy/` (this API, PostgreSQL and Redis) lives in `/home/lunex/app`; the API listens on `127.0.0.1:3100` only. Hestia's nginx owns ports 80/443 and proxies `api.lunex.my` to it with a Let's Encrypt certificate it renews itself (template `deploy/hestia/lunex-api.*`, set up once by `deploy/hestia/setup.sh`). `lunex.my` is a Hestia site of the `lunex` user (`/home/lunex/web/lunex.my/public_html`).
+Production runs at `https://api.lunex.my` on 79.132.143.211, a shared server managed by HestiaCP. All its projects use one PostgreSQL and one Redis, both on `127.0.0.1`: the API has the database `lunex_db` (role `lunex_db`, no one else may connect) and Redis database 10. The API runs in Docker in `/home/lunex/app` on the host network and listens on `127.0.0.1:3100` only; Hestia's nginx owns ports 80/443 and proxies `api.lunex.my` to it with a Let's Encrypt certificate it renews itself (template `deploy/hestia/lunex-api.*`). `lunex.my` is a Hestia site of the `lunex` user (`/home/lunex/web/lunex.my/public_html`).
 
 From the repository root:
 
@@ -198,6 +198,8 @@ From the repository root:
 deploy/deploy.sh
 ```
 
-It copies `backend/` and the stack over SSH (key `~/.ssh/lunex_deploy`), creates `/home/lunex/app/.env` with fresh secrets on the first run (template: `deploy/.env.example`), rebuilds the image and restarts, then waits for `https://api.lunex.my/health/ready`. The image (`Dockerfile`) applies migrations and the reference data on start, both safe to repeat: the seed never overwrites a value an administrator changed.
+It copies `backend/` and `deploy/` over SSH (key `~/.ssh/lunex_deploy`), runs `deploy/setup.sh` on the server — `.env` with fresh secrets, the database and its role, the Hestia domain and certificate, each only when missing — then rebuilds the image, restarts and waits for `https://api.lunex.my/health/ready`. The image (`Dockerfile`) applies migrations and the reference data on start, both safe to repeat: the seed never overwrites a value an administrator changed.
 
-Settings live in `/home/lunex/app/.env` on the server: sign-in methods (`APPLE_CLIENT_IDS=uz.lunex.finance`; Google and Telegram are off until their settings are filled in), `EMAIL_PROVIDER` (`off` until a mail service is set up; `resend` with `RESEND_API_KEY` and `EMAIL_FROM` on a domain verified in Resend — the console mailer is refused in production) and `SENTRY_DSN`. After an edit run `docker compose up -d` there. `TRUST_PROXY=1` makes rate limits see the client's address behind nginx. Logs: `docker compose logs -f api` in `/home/lunex/app`.
+Settings live in `/home/lunex/app/.env` on the server (template `deploy/.env.example`): sign-in methods (`APPLE_CLIENT_IDS=uz.lunex.finance`; Google and Telegram are off until their settings are filled in), `EMAIL_PROVIDER` (`off` until a mail service is set up; `resend` with `RESEND_API_KEY` and `EMAIL_FROM` on a domain verified in Resend — the console mailer is refused in production) and `SENTRY_DSN`. After an edit run `docker compose up -d` there. `TRUST_PROXY=1` makes rate limits see the client's address behind nginx. Logs: `docker compose logs -f api` in `/home/lunex/app`.
+
+The shared Redis evicts with `allkeys-lru` (BullMQ warns that it should be `noeviction`): with 128 MB and little in use nothing is evicted now, but queue keys could be once memory fills up.

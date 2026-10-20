@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Deploys the backend to the production server: copies backend/ and this folder's stack to
-# /home/lunex/app, creates .env with fresh secrets on the first run, rebuilds and restarts.
-# The domain itself (nginx and the certificate in HestiaCP) is set up once by hestia/setup.sh.
+# Deploys the backend to the production server: copies backend/ and this folder to
+# /home/lunex/app, runs setup.sh there (settings, database, domain; each part only once),
+# rebuilds the image and restarts the API.
 #
 #   deploy/deploy.sh
 #
@@ -21,22 +21,14 @@ rsync -az --delete -e "ssh ${ssh_opts[*]}" \
   --exclude node_modules --exclude dist --exclude coverage --exclude 'src/generated' \
   --exclude '.env' --exclude '.env.*' --exclude '*.tsbuildinfo' \
   backend/ "$server:$dir/backend/"
-rsync -az -e "ssh ${ssh_opts[*]}" deploy/compose.yaml deploy/.env.example "$server:$dir/"
+rsync -az -e "ssh ${ssh_opts[*]}" \
+  deploy/compose.yaml deploy/.env.example deploy/setup.sh deploy/hestia "$server:$dir/"
 
-echo "▸ Building and starting"
+echo "▸ Preparing the server, building and starting"
 ssh "${ssh_opts[@]}" "$server" bash -s <<REMOTE
 set -euo pipefail
 cd $dir
-if [ ! -f .env ]; then
-  # First deploy: fresh secrets that never leave the server.
-  secret() { openssl rand -base64 48 | tr -d '\n/+=' | cut -c1-48; }
-  sed -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=\$(secret)|" \
-      -e "s|^JWT_ACCESS_SECRET=.*|JWT_ACCESS_SECRET=\$(secret)|" \
-      -e "s|^AUTH_CODE_PEPPER=.*|AUTH_CODE_PEPPER=\$(secret)|" \
-      .env.example > .env
-  chmod 600 .env
-  echo "Created $dir/.env with new secrets"
-fi
+bash setup.sh
 docker compose up -d --build --remove-orphans
 docker image prune -f >/dev/null
 REMOTE

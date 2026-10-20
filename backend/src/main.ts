@@ -17,4 +17,6 @@ const config = app.get<ConfigService<Env, true>>(ConfigService);
 // Behind a proxy every request comes from it: rate limits need the client's address.
 const proxies = config.get('TRUST_PROXY', { infer: true });
 if (proxies > 0) app.set('trust proxy', proxies);
-await app.listen(config.get('PORT', { infer: true }));
+const port = config.get('PORT', { infer: true });
+const host = config.get('HOST', { infer: true });
+await (host ? app.listen(port, host) : app.listen(port));

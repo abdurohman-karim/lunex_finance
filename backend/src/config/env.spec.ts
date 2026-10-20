@@ -13,6 +13,7 @@ describe('validateEnv', () => {
       ...required,
       NODE_ENV: 'development',
       PORT: 3000,
+      HOST: undefined,
       LOG_LEVEL: 'info',
       SENTRY_DSN: undefined,
       SENTRY_TRACES_SAMPLE_RATE: 0,
