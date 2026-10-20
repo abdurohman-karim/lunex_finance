@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthModule } from '../auth/auth.module.js';
 import type { Env } from '../config/env.js';
 import { FinanceModule } from '../finance/finance.module.js';
+import { NotificationJobsModule } from '../notifications/notification-jobs.module.js';
 import { SmartSaveModule } from '../smart-save/smart-save.module.js';
 import { MaintenanceProcessor } from './maintenance.processor.js';
 import { MAINTENANCE_QUEUE } from './queue.constants.js';
@@ -14,7 +15,7 @@ import { MAINTENANCE_QUEUE } from './queue.constants.js';
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({
         connection: { url: config.get('REDIS_URL', { infer: true }) },
-        prefix: 'lunex',
+        prefix: config.get('QUEUE_PREFIX', { infer: true }),
         defaultJobOptions: {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5_000 },
@@ -27,6 +28,7 @@ import { MAINTENANCE_QUEUE } from './queue.constants.js';
     AuthModule,
     FinanceModule,
     SmartSaveModule,
+    NotificationJobsModule,
   ],
   providers: [MaintenanceProcessor],
   exports: [BullModule],

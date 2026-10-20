@@ -27,12 +27,13 @@ import {
   type ContributionResult,
   GoalsService,
 } from '../goals/goals.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { type SmartSaveFigures, smartSaveAmount } from './smart-save-math.js';
 
 type Decimal = Prisma.Decimal;
 const { Decimal } = Prisma;
 
-/** Local hour when the morning suggestion is prepared (the push follows in step «уведомления»). */
+/** Local hour when the morning suggestion is prepared and pushed. */
 export const MORNING_HOUR = 8;
 
 export type SmartSaveState =
@@ -143,6 +144,7 @@ export class SmartSaveService {
     private readonly goals: GoalsService,
     private readonly fx: FxService,
     private readonly settings: AppSettingsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Today's suggestion: computed fresh, stored so it can be accepted from the card or a push. */
@@ -346,7 +348,14 @@ export class SmartSaveService {
         if (localHour(now, user.timezone) !== MORNING_HOUR) continue;
         try {
           const result = await this.today(user.id, now);
-          if (result.status === 'available') prepared++;
+          if (result.status === 'available') {
+            prepared++;
+            await this.notifications.smartSaveReady(
+              user.id,
+              result.suggestion!,
+              now,
+            );
+          }
         } catch (error) {
           this.logger.error(
             `Smart Save for user ${user.id} failed: ${(error as Error).message}`,

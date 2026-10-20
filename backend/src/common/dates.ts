@@ -63,14 +63,28 @@ export function localHour(instant: Date, timeZone: string): number {
   ).getUTCHours();
 }
 
+/** Minutes since midnight on the wall clock of a time zone. */
+export function localMinutes(instant: Date, timeZone: string): number {
+  const wall = new Date(instant.getTime() + zoneOffsetMs(instant, timeZone));
+  return wall.getUTCHours() * 60 + wall.getUTCMinutes();
+}
+
+/** The instant a wall-clock time (minutes since midnight) of a day happens in a time zone. */
+export function localDateTime(
+  date: CalendarDate,
+  minutes: number,
+  timeZone: string,
+): Date {
+  const [year, month, day] = date.split('-').map(Number);
+  const wallUtc = Date.UTC(year, month - 1, day) + minutes * 60_000;
+  const firstGuess = wallUtc - zoneOffsetMs(new Date(wallUtc), timeZone);
+  // Re-check at the guess: the offset may differ there when DST switches that night.
+  return new Date(wallUtc - zoneOffsetMs(new Date(firstGuess), timeZone));
+}
+
 /** The instant a calendar day starts in a time zone (DST-aware). */
 export function startOfLocalDay(date: CalendarDate, timeZone: string): Date {
-  const [year, month, day] = date.split('-').map(Number);
-  const midnightUtc = Date.UTC(year, month - 1, day);
-  const firstGuess =
-    midnightUtc - zoneOffsetMs(new Date(midnightUtc), timeZone);
-  // Re-check at the guess: the offset may differ there when DST switches that night.
-  return new Date(midnightUtc - zoneOffsetMs(new Date(firstGuess), timeZone));
+  return localDateTime(date, 0, timeZone);
 }
 
 export function addDays(date: CalendarDate, days: number): CalendarDate {

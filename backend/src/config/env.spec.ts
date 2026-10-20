@@ -25,6 +25,14 @@ describe('validateEnv', () => {
       EMAIL_FROM: undefined,
       SYNC_LAG_MS: 5000,
       TRUST_PROXY: 0,
+      PUSH_PROVIDER: 'log',
+      APNS_KEY_ID: undefined,
+      APNS_TEAM_ID: undefined,
+      APNS_PRIVATE_KEY: undefined,
+      APNS_TOPIC: 'uz.lunex.finance',
+      APNS_ENVIRONMENT: 'production',
+      SIMULATOR_DEVICE: 'booted',
+      QUEUE_PREFIX: 'lunex',
     });
   });
 
@@ -95,5 +103,22 @@ describe('validateEnv', () => {
         EMAIL_PROVIDER: 'off',
       }).EMAIL_PROVIDER,
     ).toBe('off');
+  });
+
+  it('requires the APNs key for the apns provider', () => {
+    expect(() => validateEnv({ ...required, PUSH_PROVIDER: 'apns' })).toThrow(
+      /APNS_KEY_ID[\s\S]*APNS_TEAM_ID[\s\S]*APNS_PRIVATE_KEY/,
+    );
+  });
+
+  it('keeps the simulator push out of production', () => {
+    expect(() =>
+      validateEnv({
+        ...required,
+        NODE_ENV: 'production',
+        EMAIL_PROVIDER: 'off',
+        PUSH_PROVIDER: 'simulator',
+      }),
+    ).toThrow(/PUSH_PROVIDER/);
   });
 });

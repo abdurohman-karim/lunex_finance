@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AccountsController } from './accounts/accounts.controller.js';
 import { AccountsService } from './accounts/accounts.service.js';
 import { CategoriesController } from './categories/categories.controller.js';
@@ -10,6 +11,7 @@ import { TransactionsController } from './transactions/transactions.controller.j
 import { TransactionsService } from './transactions/transactions.service.js';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [
     AccountsController,
     CategoriesController,

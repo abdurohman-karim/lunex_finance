@@ -12,6 +12,7 @@ import { PrismaService } from '../database/prisma.service.js';
 import { FxService } from '../finance/fx.service.js';
 import { occurrencesBetween } from '../finance/recurrence.js';
 import { Prisma } from '../generated/prisma/client.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import {
   type BudgetState,
   budgetLeftover,
@@ -104,6 +105,7 @@ export class BudgetService {
     private readonly prisma: PrismaService,
     private readonly fx: FxService,
     private readonly entitlements: EntitlementsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -191,6 +193,8 @@ export class BudgetService {
         })),
       });
     });
+    // Lower limits may already be crossed.
+    this.notifications.expensesChanged(userId);
     return this.current(userId, now);
   }
 

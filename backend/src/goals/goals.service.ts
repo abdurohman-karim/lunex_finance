@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { GOAL_TEMPLATES } from '../database/reference-data.js';
 import { FxService } from '../finance/fx.service.js';
 import { decodeCursor, encodeCursor } from '../finance/transactions/cursor.js';
 import { Prisma } from '../generated/prisma/client.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import type {
   ContributionMethod,
   ContributionType,
@@ -214,10 +216,13 @@ const conflict = (code: string, message: string) =>
 
 @Injectable()
 export class GoalsService {
+  private readonly logger = new Logger(GoalsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly entitlements: EntitlementsService,
     private readonly fx: FxService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   templates(language: LanguageCode) {
@@ -471,7 +476,7 @@ export class GoalsService {
     origin: ContributionOrigin = { method: 'manual' },
   ): Promise<ContributionResult> {
     const clock = await this.clock(userId);
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const goal = await this.lockGoal(tx, userId, goalId);
 
       const repeated = await tx.goalContributions.findUnique({
@@ -573,6 +578,15 @@ export class GoalsService {
         completed,
       };
     });
+    if (result.newMilestones.length > 0) {
+      // The push never holds up or fails the deposit itself.
+      this.notifications
+        .goalMilestone(userId, result.goal, result.newMilestones)
+        .catch((error: Error) =>
+          this.logger.warn(`Milestone push failed: ${error.message}`),
+        );
+    }
+    return result;
   }
 
   /** Undo of a contribution: money goes back where it came from. */

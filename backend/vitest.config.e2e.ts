@@ -19,6 +19,9 @@ export default defineConfig({
       TELEGRAM_BOT_TOKEN: '123456:test-token',
       PUBLIC_URL: 'https://api.lunex.test',
       EMAIL_PROVIDER: 'console',
+      PUSH_PROVIDER: 'log',
+      // Jobs of the tests stay away from a development server's workers on the same Redis.
+      QUEUE_PREFIX: 'lunex-e2e',
       // Tests read their own writes right away.
       SYNC_LAG_MS: '0',
     },

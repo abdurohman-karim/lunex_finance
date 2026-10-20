@@ -184,6 +184,17 @@ enum NotificationType {
   @@map("notification_type")
 }
 
+enum NotificationStatus {
+  /// Ждёт времени отправки или конца тихих часов
+  pending
+  /// Отправлено хотя бы на одно устройство
+  sent
+  /// Не отправлено — причина в skip_reason
+  skipped
+
+  @@map("notification_status")
+}
+
 enum SubscriptionSource {
   trial
   app_store
@@ -846,24 +857,30 @@ model AiMessages {
 }
 
 model Notifications {
-  id           String           @id @default(uuid()) @db.Uuid
-  user_id      String           @db.Uuid
+  id           String             @id @default(uuid()) @db.Uuid
+  user_id      String             @db.Uuid
   type         NotificationType
-  title        String           @db.VarChar(160)
-  body         String           @db.VarChar(512)
+  title        String             @db.VarChar(160)
+  body         String             @db.VarChar(512)
   /// Deep link и данные для действий из уведомления
   payload      Json?
-  /// budget_threshold:{budget}:{category}:80 — одно уведомление на событие
-  dedupe_key   String           @unique @db.VarChar(128)
+  /// budget_threshold:{user}:{period}:{category}:80 — одно уведомление на событие
+  dedupe_key   String             @unique @db.VarChar(128)
+  status       NotificationStatus @default(pending)
+  /// disabled, expired, not_needed, quiet_hours, daily_limit, no_device
+  skip_reason  String?            @db.VarChar(32)
+  /// Сдвигается на конец тихих часов
   scheduled_at DateTime
+  /// Позже не отправляется: устаревшее напоминание не нужно
+  expires_at   DateTime
   sent_at      DateTime?
   opened_at    DateTime?
-  created_at   DateTime         @default(now())
+  created_at   DateTime           @default(now())
 
   user Users @relation(fields: [user_id], references: [id])
 
   @@index([user_id, created_at])
-  @@index([sent_at, scheduled_at])
+  @@index([status, scheduled_at])
   @@map("notifications")
 }
 

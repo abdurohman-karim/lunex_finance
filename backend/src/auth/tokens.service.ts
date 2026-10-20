@@ -24,6 +24,8 @@ function unauthorized(code: string, message: string): UnauthorizedException {
   return new UnauthorizedException({ code, message });
 }
 
+/** A device whose session ended: no APNs token, no pushes. */
+const SILENT = { apns_token: null, push_enabled: false };
 @Injectable()
 export class TokensService {
   private readonly accessKey: Uint8Array;
@@ -148,12 +150,26 @@ export class TokensService {
     });
   }
 
-  /** Logout of one session; unknown or already revoked tokens are ignored. */
+  /**
+   * Logout of one session; unknown or already revoked tokens are ignored. Wherever a session
+   * ends, its device stops getting the account's pushes until it registers again.
+   */
   async revoke(refreshToken: string, now = new Date()): Promise<void> {
-    await this.prisma.refreshTokens.updateMany({
-      where: { token_hash: hashRefreshToken(refreshToken), revoked_at: null },
-      data: { revoked_at: now },
+    const stored = await this.prisma.refreshTokens.findUnique({
+      where: { token_hash: hashRefreshToken(refreshToken) },
+      select: { device_id: true, revoked_at: true },
     });
+    if (!stored || stored.revoked_at) return;
+    await this.prisma.$transaction([
+      this.prisma.refreshTokens.updateMany({
+        where: { token_hash: hashRefreshToken(refreshToken), revoked_at: null },
+        data: { revoked_at: now },
+      }),
+      this.prisma.devices.updateMany({
+        where: { id: stored.device_id },
+        data: SILENT,
+      }),
+    ]);
   }
 
   async revokeDevice(
@@ -165,6 +181,7 @@ export class TokensService {
       where: { device_id: deviceId, revoked_at: null },
       data: { revoked_at: now },
     });
+    await db.devices.updateMany({ where: { id: deviceId }, data: SILENT });
   }
 
   async revokeAllForUser(
@@ -176,5 +193,6 @@ export class TokensService {
       where: { user_id: userId, revoked_at: null },
       data: { revoked_at: now },
     });
+    await db.devices.updateMany({ where: { user_id: userId }, data: SILENT });
   }
 }

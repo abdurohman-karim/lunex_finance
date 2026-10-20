@@ -20,6 +20,7 @@ import {
   changeWindowWhere,
   lastPosition,
 } from '../../sync/sync-window.js';
+import { NotificationsService } from '../../notifications/notifications.service.js';
 import { FxService } from '../fx.service.js';
 import { type BalanceMovement, netEffects } from './balance-effects.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
@@ -176,6 +177,7 @@ export class TransactionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fx: FxService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ---------- Reading ----------
@@ -316,21 +318,24 @@ export class TransactionsService {
     };
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        const data = await this.resolve(tx, userId, user, draft, null);
-        const created = await tx.transactions.create({
-          data: {
-            ...data,
-            id: input.id,
-            user_id: userId,
-            source: input.source,
-            recurring_rule_id: options.recurringRuleId ?? null,
-          },
-          include,
-        });
-        await this.applyBalances(tx, netEffects(null, movementOf(created)));
-        return toDto(created, user);
-      });
+      return this.spent(
+        userId,
+        await this.prisma.$transaction(async (tx) => {
+          const data = await this.resolve(tx, userId, user, draft, null);
+          const created = await tx.transactions.create({
+            data: {
+              ...data,
+              id: input.id,
+              user_id: userId,
+              source: input.source,
+              recurring_rule_id: options.recurringRuleId ?? null,
+            },
+            include,
+          });
+          await this.applyBalances(tx, netEffects(null, movementOf(created)));
+          return toDto(created, user);
+        }),
+      );
     } catch (error) {
       // A retry raced the first request: return what the first one stored.
       if (isUniqueViolation(error)) {
@@ -347,7 +352,7 @@ export class TransactionsService {
     patch: UpdateTransactionInput,
   ): Promise<TransactionDto> {
     const user = await this.userContext(userId);
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const existing = await this.lockOwned(tx, userId, id);
       if (existing.deleted_at) throw notFound();
 
@@ -400,6 +405,7 @@ export class TransactionsService {
       );
       return toDto(updated, user);
     });
+    return this.spent(userId, result);
   }
 
   /** Soft delete: balances are restored and the row stays for undo and sync. */
@@ -418,7 +424,7 @@ export class TransactionsService {
   /** Undo of a delete: the operation and its effect on balances come back. */
   async restore(userId: string, id: string): Promise<TransactionDto> {
     const user = await this.userContext(userId);
-    return this.prisma.$transaction(async (tx) => {
+    const restored = await this.prisma.$transaction(async (tx) => {
       const existing = await this.lockOwned(tx, userId, id);
       if (existing.deleted_at) {
         const accountIds = [
@@ -446,6 +452,15 @@ export class TransactionsService {
       });
       return toDto(row, user);
     });
+    return this.spent(userId, restored);
+  }
+
+  /** More spending may cross a budget limit: the check runs in the background. */
+  private spent(userId: string, operation: TransactionDto): TransactionDto {
+    if (operation.type === 'expense' && !operation.deletedAt) {
+      this.notifications.expensesChanged(userId);
+    }
+    return operation;
   }
 
   // ---------- Internals ----------

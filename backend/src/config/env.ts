@@ -59,6 +59,26 @@ export const envSchema = z
     EMAIL_FROM: z.preprocess(emptyToUndefined, z.string().optional()),
 
     /**
+     * `apns` sends pushes through Apple; `log` only writes them to the log (no APNs key yet);
+     * `simulator` hands them to an iOS simulator with `xcrun simctl push` (a Mac, development).
+     */
+    PUSH_PROVIDER: z.enum(['apns', 'log', 'simulator']).default('log'),
+    /** APNs auth key (Apple Developer → Keys, «Apple Push Notifications service») */
+    APNS_KEY_ID: z.preprocess(emptyToUndefined, z.string().optional()),
+    APNS_TEAM_ID: z.preprocess(emptyToUndefined, z.string().optional()),
+    /** Contents of the .p8 file; line breaks may be written as \n */
+    APNS_PRIVATE_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+    /** The app's bundle id */
+    APNS_TOPIC: z.string().default('uz.lunex.finance'),
+    /** TestFlight and App Store builds get production tokens; Xcode debug builds sandbox ones */
+    APNS_ENVIRONMENT: z.enum(['production', 'sandbox']).default('production'),
+    /** `PUSH_PROVIDER=simulator`: a simulator UDID or `booted` */
+    SIMULATOR_DEVICE: z.string().default('booted'),
+
+    /** Redis key prefix of the job queues; tests use their own so a running server ignores them */
+    QUEUE_PREFIX: z.string().min(1).default('lunex'),
+
+    /**
      * Proxies in front of the server (production: Caddy, so 1). The client IP for rate limits
      * is then read from X-Forwarded-For; 0 trusts no header.
      */
@@ -81,6 +101,28 @@ export const envSchema = z
           });
         }
       }
+    }
+    if (env.PUSH_PROVIDER === 'apns') {
+      for (const key of [
+        'APNS_KEY_ID',
+        'APNS_TEAM_ID',
+        'APNS_PRIVATE_KEY',
+      ] as const) {
+        if (!env[key]) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `${key} is required when PUSH_PROVIDER=apns`,
+          });
+        }
+      }
+    }
+    if (env.NODE_ENV === 'production' && env.PUSH_PROVIDER === 'simulator') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PUSH_PROVIDER'],
+        message: 'PUSH_PROVIDER=simulator is for development on a Mac',
+      });
     }
     if (env.NODE_ENV === 'production' && env.EMAIL_PROVIDER === 'console') {
       ctx.addIssue({

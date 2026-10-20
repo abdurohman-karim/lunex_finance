@@ -11,6 +11,7 @@ export const TEST_TELEGRAM_TOKEN = '123456:test-token';
 export interface TestSession {
   userId: string;
   auth: { Authorization: string };
+  refreshToken: string;
 }
 
 /** A fresh account through Telegram sign-in, the shortest flow without email. */
@@ -34,6 +35,7 @@ export async function signUp(
   return {
     userId: res.body.user.id,
     auth: { Authorization: `Bearer ${res.body.accessToken}` },
+    refreshToken: res.body.refreshToken,
   };
 }
 
