@@ -1,4 +1,5 @@
 import LunexCore
+import LunexLocalization
 import LunexUI
 import Sentry
 import SwiftUI
@@ -25,7 +26,21 @@ struct LunexApp: App {
             }
         }
         LunexAppearance.apply()
-        _environment = State(initialValue: AppEnvironment.live(config: config))
+        _environment = State(initialValue: Self.uiTesting() ?? AppEnvironment.live(config: config))
+    }
+
+    /// `LUNEX_UI_TEST=signedOut|signedIn` from the UI tests: the app runs against an in-memory
+    /// server and storage of its own (debug builds only).
+    private static func uiTesting() -> AppEnvironment? {
+        #if DEBUG
+        let environment = ProcessInfo.processInfo.environment
+        guard let start = environment["LUNEX_UI_TEST"].flatMap(UITestServer.Start.init(rawValue:)) else { return nil }
+        UIView.setAnimationsEnabled(false)
+        let language = environment["LUNEX_UI_TEST_LANGUAGE"].flatMap(AppLanguage.init(rawValue:)) ?? .ru
+        return AppEnvironment.uiTesting(start: start, language: language)
+        #else
+        return nil
+        #endif
     }
 
     var body: some Scene {

@@ -3,57 +3,7 @@ import Foundation
 import SwiftData
 import Testing
 
-/// The same cases as the server's `goal-math.spec.ts`.
-@Suite("Goal formulas")
-struct GoalMathTests {
-    private let calendar: Calendar = {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Tashkent")!
-        return calendar
-    }()
-
-    private func day(_ text: String) -> Date {
-        let parts = text.split(separator: "-").map { Int($0)! }
-        return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: 10))!
-    }
-
-    private func schedule(saved: Decimal, deadline: String? = "2026-12-31", today: String = "2026-07-02") -> GoalSchedule? {
-        GoalMath.schedule(
-            target: 12_000_000, saved: saved, startedOn: day("2026-01-01"), deadline: deadline.map(day),
-            today: day(today), fractionDigits: 0, calendar: calendar
-        )
-    }
-
-    @Test("progress is floored; milestones are the ones reached")
-    func progress() {
-        #expect(GoalMath.progress(saved: 2_499_999, target: 10_000_000) == 24)
-        #expect(GoalMath.progress(saved: 2_500_000, target: 10_000_000) == 25)
-        #expect(GoalMath.progress(saved: 10_500_000, target: 10_000_000) == 105)
-        #expect(GoalMath.progress(saved: 0, target: 0) == 0)
-        #expect(GoalMath.reachedMilestones(24) == [])
-        #expect(GoalMath.reachedMilestones(74) == [25, 50])
-        #expect(GoalMath.reachedMilestones(105) == [25, 50, 75, 100])
-    }
-
-    @Test("no plan without a deadline or once reached; what is left is split and rounded up")
-    func split() throws {
-        #expect(schedule(saved: 0, deadline: nil) == nil)
-        #expect(schedule(saved: 12_000_000) == nil)
-        let plan = try #require(schedule(saved: 6_000_000))
-        #expect(plan.daysLeft == 183)
-        #expect(plan.perDay == 32_787 && plan.perWeek == 222_223 && plan.perMonth == 857_143)
-    }
-
-    @Test("compared with a steady pace, 5 % of the target either way is on track")
-    func status() {
-        #expect(schedule(saved: 6_000_000)?.status == .onTrack)
-        #expect(schedule(saved: 5_500_000)?.status == .onTrack)
-        #expect(schedule(saved: 5_300_000)?.status == .behind)
-        #expect(schedule(saved: 7_000_000)?.status == .ahead)
-        let late = schedule(saved: 11_000_000, today: "2027-01-15")
-        #expect(late?.daysLeft == 0 && late?.status == .behind && late?.perDay == 1_000_000)
-    }
-}
+// Progress, milestones and the schedule: FormulaCasesTests, on the cases shared with the server.
 
 @MainActor
 private struct GoalHarness {

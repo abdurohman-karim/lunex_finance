@@ -1,0 +1,139 @@
+{
+  "about": "Spec «Бизнес-правила»: доступно на месяц, дневной лимит, можно потратить сегодня. Money is in the base currency, as strings. A case lists only the inputs it changes and the figures it checks.",
+  "defaults": {
+    "incomeActual": "0",
+    "incomePlanned": null,
+    "expensesBeforeToday": "0",
+    "expensesToday": "0",
+    "savedToGoals": "0",
+    "savingsTarget": "0",
+    "rollover": "0",
+    "upcomingRecurring": "0",
+    "totalLimit": null,
+    "daysLeft": 13,
+    "decimals": 0
+  },
+  "cases": [
+    {
+      "name": "spreads what is left over the remaining days and subtracts today",
+      "inputs": { "incomeActual": "6000000", "expensesBeforeToday": "1200000", "upcomingRecurring": "1500000", "expensesToday": "50000" },
+      "expected": { "available": "3300000", "dailyLimit": "253846", "safeToSpendToday": "203846", "state": "ok" }
+    },
+    {
+      "name": "uses the planned income while it is larger than the actual",
+      "inputs": { "incomePlanned": "4000000", "incomeActual": "1000000" },
+      "expected": { "incomeBasis": "4000000", "available": "4000000" }
+    },
+    {
+      "name": "uses the actual income once it is larger than the plan",
+      "inputs": { "incomePlanned": "4000000", "incomeActual": "5000000" },
+      "expected": { "incomeBasis": "5000000", "available": "5000000" }
+    },
+    {
+      "name": "reserves the month's savings target up front",
+      "inputs": { "incomeActual": "1000000", "savingsTarget": "200000" },
+      "expected": { "reservedForSavings": "200000", "available": "800000" }
+    },
+    {
+      "name": "reserves what was saved when it is more than the target",
+      "inputs": { "incomeActual": "1000000", "savingsTarget": "200000", "savedToGoals": "300000" },
+      "expected": { "reservedForSavings": "300000", "available": "700000" }
+    },
+    {
+      "name": "withdrawals from goals do not add money to the month",
+      "inputs": { "incomeActual": "1000000", "savedToGoals": "-100000" },
+      "expected": { "reservedForSavings": "0", "available": "1000000" }
+    },
+    {
+      "name": "adds the rollover from last month",
+      "inputs": { "incomeActual": "1000000", "rollover": "130000" },
+      "expected": { "available": "1130000" }
+    },
+    {
+      "name": "the rollover alone is money to spend",
+      "inputs": { "rollover": "260000" },
+      "expected": { "dailyLimit": "20000", "state": "ok" }
+    },
+    {
+      "name": "takes the total limit when it is stricter than income",
+      "inputs": { "incomeActual": "10000000", "totalLimit": "2600000", "expensesBeforeToday": "1300000" },
+      "expected": { "available": "8700000", "dailyLimit": "100000" }
+    },
+    {
+      "name": "takes income when it is stricter than the total limit",
+      "inputs": { "incomeActual": "1300000", "totalLimit": "13000000" },
+      "expected": { "dailyLimit": "100000" }
+    },
+    {
+      "name": "upcoming payments count against the total limit too",
+      "inputs": { "incomeActual": "10000000", "totalLimit": "2600000", "upcomingRecurring": "1300000" },
+      "expected": { "dailyLimit": "100000" }
+    },
+    {
+      "name": "a total limit is enough to budget without income",
+      "inputs": { "totalLimit": "1000000" },
+      "expected": { "state": "ok" }
+    },
+    {
+      "name": "a whole month with every input",
+      "inputs": {
+        "incomeActual": "5000000", "incomePlanned": "6000000", "rollover": "200000", "savingsTarget": "500000",
+        "savedToGoals": "300000", "expensesBeforeToday": "2000000", "upcomingRecurring": "400000",
+        "expensesToday": "70000", "daysLeft": 10
+      },
+      "expected": {
+        "incomeBasis": "6000000", "reservedForSavings": "500000", "available": "3300000",
+        "dailyLimit": "330000", "safeToSpendToday": "260000", "state": "ok"
+      }
+    },
+    {
+      "name": "the same month under a total limit is overspent today",
+      "inputs": {
+        "incomeActual": "5000000", "incomePlanned": "6000000", "rollover": "200000", "savingsTarget": "500000",
+        "savedToGoals": "300000", "expensesBeforeToday": "2000000", "upcomingRecurring": "400000",
+        "expensesToday": "70000", "daysLeft": 10, "totalLimit": "3000000"
+      },
+      "expected": { "dailyLimit": "60000", "safeToSpendToday": "-10000", "state": "overspent" }
+    },
+    {
+      "name": "never suggests a negative daily limit, and reports overspending today",
+      "inputs": { "incomeActual": "100000", "expensesBeforeToday": "500000", "expensesToday": "20000" },
+      "expected": { "available": "-400000", "dailyLimit": "0", "safeToSpendToday": "-20000", "state": "overspent" }
+    },
+    {
+      "name": "spending exactly the daily limit is not overspending",
+      "inputs": { "incomeActual": "1300000", "expensesToday": "100000" },
+      "expected": { "dailyLimit": "100000", "safeToSpendToday": "0", "state": "ok" }
+    },
+    {
+      "name": "rounds down to the currency precision",
+      "inputs": { "incomeActual": "100", "daysLeft": 3, "decimals": 2 },
+      "expected": { "dailyLimit": "33.33" }
+    },
+    {
+      "name": "rounds whole sums down too",
+      "inputs": { "incomeActual": "1000000", "daysLeft": 3 },
+      "expected": { "dailyLimit": "333333" }
+    },
+    {
+      "name": "keeps the cents of a currency that has them",
+      "inputs": { "incomeActual": "1000.50", "daysLeft": 2, "decimals": 2, "expensesToday": "0.26" },
+      "expected": { "dailyLimit": "500.25", "safeToSpendToday": "499.99" }
+    },
+    {
+      "name": "counts the last day of the month as one full day",
+      "inputs": { "incomeActual": "90000", "daysLeft": 1 },
+      "expected": { "dailyLimit": "90000" }
+    },
+    {
+      "name": "treats a month with no days left as one day",
+      "inputs": { "incomeActual": "50000", "daysLeft": 0 },
+      "expected": { "dailyLimit": "50000" }
+    },
+    {
+      "name": "asks for income when there is none yet",
+      "inputs": {},
+      "expected": { "dailyLimit": "0", "safeToSpendToday": "0", "state": "no_income" }
+    }
+  ]
+}

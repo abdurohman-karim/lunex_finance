@@ -1,0 +1,55 @@
+{
+  "about": "Spec «Бизнес-правила»: прогресс цели, этапы и график взносов. Money is in the goal currency, as strings; dates are days in the user's time zone. A schedule of null means no plan (no deadline, or the target is reached).",
+  "progress": [
+    { "saved": "2499999", "target": "10000000", "percent": 24, "milestones": [] },
+    { "saved": "2500000", "target": "10000000", "percent": 25, "milestones": [25] },
+    { "saved": "7499999", "target": "10000000", "percent": 74, "milestones": [25, 50] },
+    { "saved": "2", "target": "3", "percent": 66, "milestones": [25, 50] },
+    { "saved": "0.99", "target": "1", "percent": 99, "milestones": [25, 50, 75] },
+    { "saved": "10000000", "target": "10000000", "percent": 100, "milestones": [25, 50, 75, 100] },
+    { "saved": "10500000", "target": "10000000", "percent": 105, "milestones": [25, 50, 75, 100] },
+    { "saved": "0", "target": "0", "percent": 0, "milestones": [] }
+  ],
+  "scheduleDefaults": { "target": "12000000", "startedOn": "2026-01-01", "deadline": "2026-12-31", "today": "2026-07-02", "decimals": 0 },
+  "schedule": [
+    { "name": "no plan without a deadline", "inputs": { "saved": "0", "deadline": null }, "expected": null },
+    { "name": "no plan once the target is reached", "inputs": { "saved": "12000000" }, "expected": null },
+    { "name": "no plan above the target", "inputs": { "saved": "12500000" }, "expected": null },
+    {
+      "name": "splits what is left over the remaining days, weeks and 30-day months, rounding up",
+      "inputs": { "saved": "6000000" },
+      "expected": { "daysLeft": 183, "perDay": "32787", "perWeek": "222223", "perMonth": "857143", "expectedSaved": "6000000", "status": "on_track" }
+    },
+    { "name": "less than the steady pace within 5 % of the target is on track", "inputs": { "saved": "5500000" }, "expected": { "status": "on_track" } },
+    { "name": "exactly 5 % below the steady pace is still on track", "inputs": { "saved": "5400000" }, "expected": { "status": "on_track" } },
+    { "name": "more than 5 % below the steady pace is behind", "inputs": { "saved": "5399999" }, "expected": { "status": "behind" } },
+    { "name": "exactly 5 % above the steady pace is still on track", "inputs": { "saved": "6600000" }, "expected": { "status": "on_track" } },
+    { "name": "more than 5 % above the steady pace is ahead", "inputs": { "saved": "6600001" }, "expected": { "status": "ahead" } },
+    { "name": "well above the steady pace is ahead", "inputs": { "saved": "7000000" }, "expected": { "status": "ahead" } },
+    {
+      "name": "on the deadline day everything left is due today",
+      "inputs": { "saved": "11000000", "today": "2026-12-31" },
+      "expected": { "daysLeft": 1, "perDay": "1000000", "perWeek": "1000000", "perMonth": "1000000", "expectedSaved": "12000000", "status": "behind" }
+    },
+    {
+      "name": "close enough on the deadline day is on track",
+      "inputs": { "saved": "11500000", "today": "2026-12-31" },
+      "expected": { "daysLeft": 1, "perDay": "500000", "status": "on_track" }
+    },
+    {
+      "name": "after the deadline everything left is due and the goal is behind",
+      "inputs": { "saved": "11000000", "today": "2027-01-15" },
+      "expected": { "daysLeft": 0, "perDay": "1000000", "perWeek": "1000000", "perMonth": "1000000", "expectedSaved": "12000000", "status": "behind" }
+    },
+    {
+      "name": "a new goal on its first day is on track",
+      "inputs": { "target": "3000000", "saved": "0", "startedOn": "2026-10-20", "deadline": "2027-01-20", "today": "2026-10-20" },
+      "expected": { "daysLeft": 93, "perDay": "32259", "perWeek": "214286", "perMonth": "750000", "expectedSaved": "0", "status": "on_track" }
+    },
+    {
+      "name": "a goal in dollars keeps the cents and rounds them up",
+      "inputs": { "target": "1000", "saved": "0", "startedOn": "2026-10-01", "deadline": "2026-10-31", "today": "2026-10-08", "decimals": 2 },
+      "expected": { "daysLeft": 24, "perDay": "41.67", "perWeek": "250", "perMonth": "1000", "expectedSaved": "233.33", "status": "behind" }
+    }
+  ]
+}

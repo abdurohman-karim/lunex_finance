@@ -1,4 +1,3 @@
-import { budgetPeriod } from '../budget/budget-period.js';
 import {
   occurrencesBetween,
   type RecurrenceRule,
@@ -56,37 +55,6 @@ describe('calendar dates', () => {
         'Asia/Tashkent',
       ),
     ).toBe('2026-10-19');
-  });
-});
-
-describe('budgetPeriod', () => {
-  it('is the calendar month when the payday is the 1st', () => {
-    expect(budgetPeriod('2026-10-19', 1)).toEqual({
-      start: '2026-10-01',
-      end: '2026-10-31',
-    });
-  });
-
-  it('runs from payday to the day before the next payday', () => {
-    expect(budgetPeriod('2026-10-19', 10)).toEqual({
-      start: '2026-10-10',
-      end: '2026-11-09',
-    });
-    expect(budgetPeriod('2026-10-05', 10)).toEqual({
-      start: '2026-09-10',
-      end: '2026-10-09',
-    });
-  });
-
-  it('moves a payday on the 31st to the last day of short months', () => {
-    expect(budgetPeriod('2026-02-28', 31)).toEqual({
-      start: '2026-02-28',
-      end: '2026-03-30',
-    });
-    expect(budgetPeriod('2026-02-27', 31)).toEqual({
-      start: '2026-01-31',
-      end: '2026-02-27',
-    });
   });
 });
 

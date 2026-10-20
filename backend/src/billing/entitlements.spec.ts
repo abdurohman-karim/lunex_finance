@@ -167,4 +167,47 @@ describe('resolveAccess', () => {
       expiresAt: promo.expires_at,
     });
   });
+
+  it('ends Pro at the very moment a subscription expires', () => {
+    const ending: SubscriptionRow = {
+      source: 'app_store',
+      status: 'active',
+      started_at: new Date(now.getTime() - 30 * DAY),
+      expires_at: now,
+    };
+    const on = settings({ monetization_enabled: true });
+    expect(resolveAccess(on, [ending], now).plan).toBe('free');
+    expect(resolveAccess(on, [ending], new Date(now.getTime() - 1)).plan).toBe(
+      'pro',
+    );
+  });
+
+  it('counts the last hours of a trial as a whole day left', () => {
+    const lastHours: SubscriptionRow = {
+      ...trial(0),
+      expires_at: new Date(now.getTime() + 2 * 60 * 60 * 1000),
+    };
+    const access = resolveAccess(
+      settings({ monetization_enabled: true }),
+      [lastHours],
+      now,
+    );
+    expect(access).toMatchObject({
+      plan: 'pro',
+      trial: { active: true, daysLeft: 1 },
+    });
+  });
+
+  it('turns Free users back to Pro when monetization is switched off again', () => {
+    const subscriptions = [trial(31)];
+    const before = resolveAccess(
+      settings({ monetization_enabled: true }),
+      subscriptions,
+      now,
+    );
+    const after = resolveAccess(settings(), subscriptions, now);
+    expect(before.plan).toBe('free');
+    expect(after).toMatchObject({ plan: 'pro', source: 'monetization_off' });
+    expect(after.limits.accounts).toBeNull();
+  });
 });

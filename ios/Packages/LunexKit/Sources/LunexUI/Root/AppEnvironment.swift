@@ -18,7 +18,7 @@ public final class AppEnvironment {
     public let goals: GoalBook
     public let budgetPlans: BudgetPlans
     public let smartSave: SmartSaveStore
-    public let firstSteps = FirstStepsStore()
+    public let firstSteps: FirstStepsStore
     public let settings: SettingsStore
     public let account: AccountService
     public let appLock: AppLock
@@ -27,6 +27,8 @@ public final class AppEnvironment {
     public let container: ModelContainer
     public let deviceId: UUID
     public let api: APIClient
+    /// Caches and per-device choices; the UI tests use their own so they leave the app's alone.
+    public let defaults: UserDefaults
 
     private static let logger = Logger(subsystem: "uz.lunex.finance", category: "environment")
     /// Simulator and debug builds talk to the local backend (`backend/`, port 3000).
@@ -41,7 +43,8 @@ public final class AppEnvironment {
         localizer: Localizer,
         container: ModelContainer,
         deviceId: UUID,
-        api: APIClient
+        api: APIClient,
+        defaults: UserDefaults
     ) {
         self.config = config
         self.session = session
@@ -51,10 +54,11 @@ public final class AppEnvironment {
         self.ledger = Ledger(container: container, sync: sync) { session.profile?.baseCurrency ?? "UZS" }
         self.catalog = Catalog(container: container, sync: sync)
         self.goals = GoalBook(container: container, sync: sync)
-        let budgetPlans = BudgetPlans(api: api)
+        let budgetPlans = BudgetPlans(api: api, defaults: defaults)
         self.budgetPlans = budgetPlans
-        let smartSave = SmartSaveStore(api: api, sync: sync)
+        let smartSave = SmartSaveStore(api: api, sync: sync, defaults: defaults)
         self.smartSave = smartSave
+        self.firstSteps = FirstStepsStore(defaults: defaults)
         self.settings = SettingsStore(container: container, sync: sync)
         self.account = AccountService(api: api, session: session)
         // Locked from the first frame when the account has the lock on (the store is local).
@@ -67,16 +71,53 @@ public final class AppEnvironment {
         self.container = container
         self.deviceId = deviceId
         self.api = api
+        self.defaults = defaults
     }
 
     public static func live(config: AppConfig) -> AppEnvironment {
-        let store = KeychainStore()
         let baseURL = config.apiBaseURL ?? developmentAPI
         if config.apiBaseURL == nil {
             logger.error("LunexAPIBaseURL is not set; using \(developmentAPI.absoluteString)")
         }
-
         let transport = URLSessionTransport()
+        let environment = assemble(
+            config: config, baseURL: baseURL, store: KeychainStore(), transport: transport,
+            container: makeContainer(), defaults: .standard, localizer: Localizer(),
+            google: config.googleClientID.map { GoogleSignIn(clientID: $0, transport: transport) }
+        )
+        environment.sync.startMonitoringNetwork()
+        return environment
+    }
+
+    #if DEBUG
+    /// The app against `UITestServer`, from a clean slate every launch: an in-memory database
+    /// and Keychain and UserDefaults of its own, so the tests never touch a real sign-in.
+    public static func uiTesting(start: UITestServer.Start, language: AppLanguage) -> AppEnvironment {
+        let suite = "uz.lunex.finance.ui-tests"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let localizer = Localizer(defaults: defaults)
+        localizer.language = language
+        let store = InMemorySecureStore(start == .signedIn ? [SecureKey.refreshToken: UITestServer.refreshToken] : [:])
+        return assemble(
+            config: AppConfig(apiBaseURL: developmentAPI, sentryDSN: nil, appVersion: "ui-test"),
+            baseURL: developmentAPI, store: store, transport: UITestServer(start: start),
+            container: try! LunexStore.makeContainer(inMemory: true), defaults: defaults, localizer: localizer,
+            google: nil
+        )
+    }
+    #endif
+
+    private static func assemble(
+        config: AppConfig,
+        baseURL: URL,
+        store: SecureStore,
+        transport: HTTPTransport,
+        container: ModelContainer,
+        defaults: UserDefaults,
+        localizer: Localizer,
+        google: GoogleSignIn?
+    ) -> AppEnvironment {
         // Sign-in and refresh go without a session; everything else through AuthSession.
         let publicAPI = APIClient(baseURL: baseURL, transport: transport, session: nil, appVersion: config.appVersion)
         let sessionBox = SessionBox()
@@ -86,7 +127,7 @@ public final class AppEnvironment {
             onSignedOut: { Task { @MainActor in sessionBox.session?.sessionEnded() } }
         )
         let api = APIClient(baseURL: baseURL, transport: transport, session: auth, appVersion: config.appVersion)
-        let session = SessionStore(api: api, auth: auth, cache: UserDefaultsProfileCache())
+        let session = SessionStore(api: api, auth: auth, cache: UserDefaultsProfileCache(defaults: defaults))
         sessionBox.session = session
 
         let deviceId = DeviceIdentity.id(in: store)
@@ -95,12 +136,9 @@ public final class AppEnvironment {
             session: session,
             device: DeviceInfo.current(id: deviceId, appVersion: config.appVersion),
             telegramStartURL: TelegramLogin.startURL(apiBaseURL: baseURL),
-            google: config.googleClientID.map { GoogleSignIn(clientID: $0, transport: transport) }
+            google: google
         )
-
-        let container = makeContainer()
         let sync = SyncEngine(api: api, container: container) { profile in session.update(profile) }
-        sync.startMonitoringNetwork()
 
         return AppEnvironment(
             config: config,
@@ -108,10 +146,11 @@ public final class AppEnvironment {
             signIn: signIn,
             onboarding: OnboardingService(api: api, session: session),
             sync: sync,
-            localizer: Localizer(),
+            localizer: localizer,
             container: container,
             deviceId: deviceId,
-            api: api
+            api: api,
+            defaults: defaults
         )
     }
 
@@ -141,7 +180,8 @@ public final class AppEnvironment {
             localizer: Localizer(defaults: UserDefaults(suiteName: "preview")!),
             container: container,
             deviceId: deviceId,
-            api: api
+            api: api,
+            defaults: UserDefaults(suiteName: "preview")!
         )
     }
 
@@ -175,6 +215,7 @@ extension View {
             .environment(app.toasts)
             .environment(app.localizer)
             .modelContainer(app.container)
+            .defaultAppStorage(app.defaults)
     }
 }
 

@@ -3,7 +3,6 @@ import {
   type CalendarDate,
   addDays,
   asDbDate,
-  daysBetween,
   localDate,
   startOfLocalDay,
 } from '../common/dates.js';
@@ -12,7 +11,7 @@ import { FxService } from '../finance/fx.service.js';
 import { occurrencesBetween } from '../finance/recurrence.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { type BudgetState, computeBudget } from './budget-math.js';
-import { budgetPeriod } from './budget-period.js';
+import { budgetPeriod, daysLeftIn, periodDays } from './budget-period.js';
 
 type Decimal = Prisma.Decimal;
 const { Decimal } = Prisma;
@@ -107,7 +106,7 @@ export class BudgetService {
     const todayStart = startOfLocalDay(today, tz);
     const tomorrowStart = startOfLocalDay(addDays(today, 1), tz);
     const periodEnd = startOfLocalDay(addDays(period.end, 1), tz);
-    const daysLeft = daysBetween(today, period.end) + 1;
+    const daysLeft = daysLeftIn(period, today);
 
     const sumBase = async (
       type: 'income' | 'expense',
@@ -202,7 +201,7 @@ export class BudgetService {
         start: period.start,
         end: period.end,
         today,
-        daysTotal: daysBetween(period.start, period.end) + 1,
+        daysTotal: periodDays(period),
         daysLeft,
       },
       currency: user.baseCurrency.code,

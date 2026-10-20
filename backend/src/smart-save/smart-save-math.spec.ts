@@ -94,4 +94,29 @@ describe('smartSaveAmount', () => {
       run({ rate: d(1).dividedBy(12_650), step: d(1), minimum: d(1) }).amount,
     ).toBe(11);
   });
+
+  it('does not count withdrawals from goals as free money', () => {
+    expect(run({ savedToGoals: d(-650_000) }).amount).toBe(150_000);
+  });
+
+  it('spreads the free money over one day on the last day of the month', () => {
+    expect(run({ daysLeft: 1 }).amount).toBe(1_950_000);
+    expect(run({ daysLeft: 0 }).amount).toBe(1_950_000);
+  });
+
+  it('takes no more than the account holds, even when the goal needs less', () => {
+    expect(
+      run({ goalRemaining: d(40_000), accountBalance: d(30_500) }),
+    ).toEqual({
+      amount: 30_000,
+      cappedBy: 'account_balance',
+      block: null,
+    });
+  });
+
+  it('cannot finish a goal from an account that is too short', () => {
+    expect(
+      run({ goalRemaining: d(500), accountBalance: d(300) }),
+    ).toMatchObject({ amount: 0, block: 'insufficient_balance' });
+  });
 });

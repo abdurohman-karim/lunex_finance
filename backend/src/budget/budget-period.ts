@@ -1,4 +1,9 @@
-import { type CalendarDate, addDays, clampedDate } from '../common/dates.js';
+import {
+  type CalendarDate,
+  addDays,
+  clampedDate,
+  daysBetween,
+} from '../common/dates.js';
 
 export interface BudgetPeriod {
   start: CalendarDate;
@@ -24,4 +29,14 @@ export function budgetPeriod(
   const [startYear, startMonth] = start.split('-').map(Number);
   const nextStart = clampedDate(startYear, startMonth + 1, startDay);
   return { start, end: addDays(nextStart, -1) };
+}
+
+/** Days in the period, both ends included. */
+export function periodDays(period: BudgetPeriod): number {
+  return daysBetween(period.start, period.end) + 1;
+}
+
+/** Days from `today` to the end of the period, today included. */
+export function daysLeftIn(period: BudgetPeriod, today: CalendarDate): number {
+  return daysBetween(today, period.end) + 1;
 }

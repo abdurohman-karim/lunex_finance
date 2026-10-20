@@ -22,7 +22,8 @@ settings:
       # The simulator reaches the Mac's localhost: run `backend/` with `npm run start:dev`.
       LUNEX_API_BASE_URL: "http://localhost:3000/v1"
     Release:
-      # Set to the production API, e.g. https://api.<domain>/v1, before an App Store build.
+      # The production API, e.g. https://api.<domain>/v1: scripts/beta.sh passes it, and a
+      # Release build without an https URL stops (see the target's pre-build script).
       LUNEX_API_BASE_URL: ""
 
 packages:
@@ -66,6 +67,17 @@ targets:
         NSAppTransportSecurity:
           # Plain HTTP only to localhost (the development backend); everything else HTTPS.
           NSAllowsLocalNetworking: true
+    preBuildScripts:
+      - name: Check the release API
+        basedOnDependencyAnalysis: false
+        script: |
+          # A Release build talks to the production API: never ship one that points nowhere.
+          if [ "$CONFIGURATION" = "Release" ]; then
+            case "$LUNEX_API_BASE_URL" in
+              https://*) ;;
+              *) echo "error: LUNEX_API_BASE_URL must be the https production API for a Release build (see scripts/beta.sh)"; exit 1 ;;
+            esac
+          fi
     entitlements:
       path: Lunex/Lunex.entitlements
       properties:
@@ -81,6 +93,20 @@ targets:
         # Google sign-in: the iOS OAuth client id (also in the backend's GOOGLE_CLIENT_IDS); off when empty.
         LUNEX_GOOGLE_CLIENT_ID: ""
 
+  LunexUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: LunexUITests
+    dependencies:
+      - target: Lunex
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: uz.lunex.finance.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Lunex
+        TARGETED_DEVICE_FAMILY: "1"
+
 schemes:
   Lunex:
     build:
@@ -93,3 +119,4 @@ schemes:
       targets:
         - package: LunexKit/LunexCoreTests
         - package: LunexKit/LunexLocalizationTests
+        - LunexUITests

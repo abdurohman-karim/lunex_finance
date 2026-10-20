@@ -1,6 +1,7 @@
 import Foundation
 
-// Wire format of `/v1/sync`: what a pull returns and what the queue pushes.
+// Wire format of `/v1/sync`: what a pull returns and what the queue pushes. Encodable too, for
+// the UI tests' stand-in server (`UITestServer`).
 // Money comes as decimal strings and becomes `Decimal` when it reaches a record.
 
 /// One change for the server's queue (`POST /v1/sync/push`), already encoded.
@@ -48,7 +49,7 @@ public struct SyncOperation: Sendable, Equatable {
 }
 
 /// `GET /v1/sync/changes`: one page of changes since the cursor.
-struct SyncPage: Decodable, Sendable {
+struct SyncPage: Codable, Sendable {
     let profile: Profile?
     let accounts: [AccountDTO]
     let categories: [CategoryDTO]
@@ -61,8 +62,8 @@ struct SyncPage: Decodable, Sendable {
     let serverTime: Date
 }
 
-struct PushResponse: Decodable, Sendable {
-    struct Result: Decodable, Sendable {
+struct PushResponse: Codable, Sendable {
+    struct Result: Codable, Sendable {
         let opId: String?
         /// applied, rejected
         let status: String
@@ -73,7 +74,7 @@ struct PushResponse: Decodable, Sendable {
     let results: [Result]
 }
 
-struct AccountDTO: Decodable, Sendable {
+struct AccountDTO: Codable, Sendable {
     let id: UUID
     let name: String
     let type: String
@@ -90,7 +91,7 @@ struct AccountDTO: Decodable, Sendable {
     let deletedAt: Date?
 }
 
-struct CategoryDTO: Decodable, Sendable {
+struct CategoryDTO: Codable, Sendable {
     let id: UUID
     let type: String
     let key: String?
@@ -106,7 +107,7 @@ struct CategoryDTO: Decodable, Sendable {
     let deletedAt: Date?
 }
 
-struct TransactionDTO: Decodable, Sendable {
+struct TransactionDTO: Codable, Sendable {
     let id: UUID
     let type: String
     let accountId: UUID
@@ -128,8 +129,8 @@ struct TransactionDTO: Decodable, Sendable {
     let deletedAt: Date?
 }
 
-struct GoalDTO: Decodable, Sendable {
-    struct Schedule: Decodable, Sendable {
+struct GoalDTO: Codable, Sendable {
+    struct Schedule: Codable, Sendable {
         let perDay: String
         let perWeek: String
         let perMonth: String
@@ -161,7 +162,7 @@ struct GoalDTO: Decodable, Sendable {
     let deletedAt: Date?
 }
 
-struct ContributionDTO: Decodable, Sendable {
+struct ContributionDTO: Codable, Sendable {
     let id: UUID
     let goalId: UUID
     let type: String
@@ -177,7 +178,7 @@ struct ContributionDTO: Decodable, Sendable {
     let deletedAt: Date?
 }
 
-struct SettingsDTO: Decodable, Sendable {
+struct SettingsDTO: Codable, Sendable {
     let biometricLockEnabled: Bool
     let lockAfterSeconds: Int
     let hideAmounts: Bool

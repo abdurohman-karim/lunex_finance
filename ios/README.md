@@ -7,7 +7,9 @@ SwiftUI app for iOS 18+, Swift 6 (strict concurrency). The product spec and buil
 ```
 ios/
 ├── project.yml              XcodeGen spec (Lunex.xcodeproj is generated, not committed)
-├── Lunex/                   app shell: LunexApp.swift, assets
+├── Lunex/                   app shell: LunexApp.swift, assets, privacy manifest
+├── LunexUITests/            UI tests of the key scenarios (XCUITest)
+├── scripts/beta.sh          archive and upload to TestFlight
 └── Packages/LunexKit/       everything else, testable on the Mac with `swift test`
     ├── LunexCore            API client, session & Keychain, money, SwiftData records
     ├── LunexLocalization    uz / ru / en strings (Localizable.xcstrings), runtime language switch
@@ -29,8 +31,11 @@ Start the backend first (`cd backend && docker compose up -d && npm run start:de
 ```bash
 cd ios/Packages/LunexKit && swift test        # core and localization tests, no simulator needed
 cd ios && xcodebuild -project Lunex.xcodeproj -scheme Lunex \
-  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro' test   # the same plus the UI tests
 ```
+
+- **Formulas** (daily limit, budget month, goal progress and schedule) are checked on the cases in `../shared/formula-cases/*.json`, which the server's tests read too: a change to a formula changes the file, and both sides must agree. Smart Save and Pro access are computed only on the server and tested there.
+- **UI tests** (`LunexUITests`) cover sign-in by email and onboarding, quick add with undo, deleting from history with undo, a goal with a deposit and hidden amounts. They need no backend: with `LUNEX_UI_TEST=signedOut|signedIn` in its environment a Debug build talks to `UITestServer` (`LunexCore/Testing`), an in-memory stand-in for the API, and keeps its database, Keychain and UserDefaults in memory or in a suite of its own, so a real sign-in on the simulator is left alone. The tests find controls by the Russian strings of `Localizable.xcstrings`. Release builds contain none of this.
 
 ## Notes
 
@@ -48,3 +53,19 @@ cd ios && xcodebuild -project Lunex.xcodeproj -scheme Lunex \
   - *Apple*: `SignInWithAppleButton` with a nonce; the entitlement comes from `project.yml`. Bundle id `uz.lunex.finance` must be in the backend's `APPLE_CLIENT_IDS`; on a device it needs your Apple team.
   - *Google*: OAuth with PKCE in `ASWebAuthenticationSession`, no SDK. Set `LUNEX_GOOGLE_CLIENT_ID` in `project.yml` to the iOS OAuth client id and add the same id to the backend's `GOOGLE_CLIENT_IDS`.
   - *Telegram*: the app opens `/v1/auth/telegram/start`; Telegram returns to the server, which hands the result to `lunex://auth/telegram`. Needs the backend's `TELEGRAM_BOT_TOKEN` and `PUBLIC_URL` (the bot's domain in @BotFather), so it does not work against `localhost`.
+
+## Closed beta (TestFlight)
+
+Once per project:
+
+1. An Apple Developer team, and the app in App Store Connect with bundle id `uz.lunex.finance` (and Sign in with Apple enabled for the id).
+2. The backend running on a public https address (`../backend/README.md`, «Deploy»), with `uz.lunex.finance` in `APPLE_CLIENT_IDS` and `EMAIL_PROVIDER=resend`.
+3. In App Store Connect → TestFlight: a group of testers (internal — team members — or an external group by invitation, which needs Apple's beta review once).
+
+Each build:
+
+```bash
+LUNEX_TEAM_ID=<team id> LUNEX_API_BASE_URL=https://<api domain>/v1 ios/scripts/beta.sh
+```
+
+The script archives the Release configuration (build number = number of commits), signs automatically and uploads; the build appears in TestFlight after Apple's processing, then is added to the group. A Release build refuses to compile without an https `LUNEX_API_BASE_URL`. For CI pass an App Store Connect API key in `ASC_KEY_PATH`, `ASC_KEY_ID`, `ASC_ISSUER_ID`; `LUNEX_SENTRY_DSN` turns on crash reports. Notes for testers: `TestFlight/what-to-test.txt`. App Privacy answers follow `Lunex/PrivacyInfo.xcprivacy` (email, financial info and user id for the app's functions, crash data unlinked; no tracking); export compliance is answered in Info.plist (`ITSAppUsesNonExemptEncryption = NO`).

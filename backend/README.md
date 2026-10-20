@@ -187,3 +187,14 @@ npm run test:e2e    # needs compose services, migrations and seed
 ## Production
 
 `npm run start:prod` runs `node --import ./dist/instrument.js dist/main` so Sentry instruments ESM modules. Sentry is off unless `SENTRY_DSN` is set; request bodies, cookies, DB query data and AI prompts are never sent.
+
+## Deploy
+
+`Dockerfile` builds the production image; on start it applies migrations and the reference data (both safe to repeat: the seed never overwrites a value an administrator changed) and serves on port 3000.
+
+```bash
+docker build -t lunex-api backend/
+docker run -p 3000:3000 --env-file production.env lunex-api
+```
+
+It needs PostgreSQL and Redis, and the variables of `.env.example` with `NODE_ENV=production`: strong `JWT_ACCESS_SECRET` and `AUTH_CODE_PEPPER`, `EMAIL_PROVIDER=resend` with `RESEND_API_KEY` and `EMAIL_FROM` (the console mailer is refused in production), `APPLE_CLIENT_IDS=uz.lunex.finance`, and for Telegram `TELEGRAM_BOT_TOKEN` with `PUBLIC_URL`. Put it behind https: the app talks to `https://<domain>/v1`. Readiness: `GET /health/ready`.

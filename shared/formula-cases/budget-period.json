@@ -1,0 +1,17 @@
+{
+  "about": "The budget month containing a day: it starts on payday (month_starts_on_day) and ends the day before the next one; in shorter months payday moves to the last day. `days` is its length, `daysLeft` counts from `today` to the end, both days included.",
+  "cases": [
+    { "name": "the calendar month when payday is the 1st", "today": "2026-10-19", "payday": 1, "start": "2026-10-01", "end": "2026-10-31", "days": 31, "daysLeft": 13 },
+    { "name": "the 1st of January starts a new month", "today": "2027-01-01", "payday": 1, "start": "2027-01-01", "end": "2027-01-31", "days": 31, "daysLeft": 31 },
+    { "name": "after payday the month runs to the day before the next one", "today": "2026-10-19", "payday": 10, "start": "2026-10-10", "end": "2026-11-09", "days": 31, "daysLeft": 22 },
+    { "name": "before payday the month started last month", "today": "2026-10-05", "payday": 10, "start": "2026-09-10", "end": "2026-10-09", "days": 30, "daysLeft": 5 },
+    { "name": "before payday the days left run up to the day before it", "today": "2026-10-19", "payday": 26, "start": "2026-09-26", "end": "2026-10-25", "days": 30, "daysLeft": 7 },
+    { "name": "payday itself is the first day", "today": "2026-10-25", "payday": 25, "start": "2026-10-25", "end": "2026-11-24", "days": 31, "daysLeft": 31 },
+    { "name": "a month across the new year", "today": "2026-12-20", "payday": 15, "start": "2026-12-15", "end": "2027-01-14", "days": 31, "daysLeft": 26 },
+    { "name": "payday on the 31st moves to the end of February", "today": "2026-02-28", "payday": 31, "start": "2026-02-28", "end": "2026-03-30", "days": 31, "daysLeft": 31 },
+    { "name": "before a moved payday the month is still the previous one", "today": "2026-02-27", "payday": 31, "start": "2026-01-31", "end": "2026-02-27", "days": 28, "daysLeft": 1 },
+    { "name": "the day before the 31st is the last day of a month that began in February", "today": "2026-03-30", "payday": 31, "start": "2026-02-28", "end": "2026-03-30", "days": 31, "daysLeft": 1 },
+    { "name": "payday on the 31st across the new year", "today": "2027-01-10", "payday": 31, "start": "2026-12-31", "end": "2027-01-30", "days": 31, "daysLeft": 21 },
+    { "name": "payday on the 30th in a leap February", "today": "2028-02-29", "payday": 30, "start": "2028-02-29", "end": "2028-03-29", "days": 30, "daysLeft": 30 }
+  ]
+}
