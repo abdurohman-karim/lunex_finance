@@ -23,6 +23,7 @@ describe('validateEnv', () => {
       RESEND_API_KEY: undefined,
       EMAIL_FROM: undefined,
       SYNC_LAG_MS: 5000,
+      TRUST_PROXY: 0,
     });
   });
 
@@ -83,5 +84,15 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...required, NODE_ENV: 'production' })).toThrow(
       /EMAIL_PROVIDER/,
     );
+  });
+
+  it('runs in production with email sign-in off and no mail service', () => {
+    expect(
+      validateEnv({
+        ...required,
+        NODE_ENV: 'production',
+        EMAIL_PROVIDER: 'off',
+      }).EMAIL_PROVIDER,
+    ).toBe('off');
   });
 });

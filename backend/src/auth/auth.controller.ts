@@ -1,4 +1,12 @@
-import { Body, Controller, Get, HttpCode, Ip, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Ip,
+  Post,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { z } from 'zod';
 import { RateLimiter } from '../common/rate-limiter.service.js';
@@ -60,7 +68,7 @@ export class AuthController {
       apple: this.config.get('APPLE_CLIENT_IDS', { infer: true }).length > 0,
       google: this.config.get('GOOGLE_CLIENT_IDS', { infer: true }).length > 0,
       telegram: Boolean(telegramBot && publicUrl),
-      email: true,
+      email: this.config.get('EMAIL_PROVIDER', { infer: true }) !== 'off',
     };
   }
 
@@ -102,6 +110,12 @@ export class AuthController {
     body: z.infer<typeof emailStartSchema>,
     @Ip() ip: string,
   ) {
+    if (this.config.get('EMAIL_PROVIDER', { infer: true }) === 'off') {
+      throw new ServiceUnavailableException({
+        code: 'provider_disabled',
+        message: 'Email sign-in is not configured',
+      });
+    }
     await this.rateLimiter.consume(
       `email-start:ip:${ip}`,
       EMAIL_CODES_PER_IP_PER_HOUR,

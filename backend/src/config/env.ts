@@ -47,11 +47,20 @@ export const envSchema = z
      */
     PUBLIC_URL: z.preprocess(emptyToUndefined, z.url().optional()),
 
-    /** `console` prints login codes to the log and is refused in production */
-    EMAIL_PROVIDER: z.enum(['console', 'resend']).default('console'),
+    /**
+     * `console` prints login codes to the log and is refused in production; `off` turns email
+     * sign-in off (the app does not offer it) until a mail service is set up.
+     */
+    EMAIL_PROVIDER: z.enum(['console', 'resend', 'off']).default('console'),
     RESEND_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
     /** Sender, e.g. `Lunex Finance <no-reply@your-domain>`; the domain must be verified in Resend */
     EMAIL_FROM: z.preprocess(emptyToUndefined, z.string().optional()),
+
+    /**
+     * Proxies in front of the server (production: Caddy, so 1). The client IP for rate limits
+     * is then read from X-Forwarded-For; 0 trusts no header.
+     */
+    TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
 
     /**
      * Sync returns changes only up to now minus this lag, so a write still in flight

@@ -190,11 +190,12 @@ npm run test:e2e    # needs compose services, migrations and seed
 
 ## Deploy
 
-`Dockerfile` builds the production image; on start it applies migrations and the reference data (both safe to repeat: the seed never overwrites a value an administrator changed) and serves on port 3000.
+Production runs at `https://api.lunex.my` on 79.132.143.211, in `/home/lunex`: the stack in `../deploy/` (this API, PostgreSQL, Redis, and Caddy, which gets the https certificates). From the repository root:
 
 ```bash
-docker build -t lunex-api backend/
-docker run -p 3000:3000 --env-file production.env lunex-api
+deploy/deploy.sh
 ```
 
-It needs PostgreSQL and Redis, and the variables of `.env.example` with `NODE_ENV=production`: strong `JWT_ACCESS_SECRET` and `AUTH_CODE_PEPPER`, `EMAIL_PROVIDER=resend` with `RESEND_API_KEY` and `EMAIL_FROM` (the console mailer is refused in production), `APPLE_CLIENT_IDS=uz.lunex.finance`, and for Telegram `TELEGRAM_BOT_TOKEN` with `PUBLIC_URL`. Put it behind https: the app talks to `https://<domain>/v1`. Readiness: `GET /health/ready`.
+It copies `backend/` and the stack over SSH (key `~/.ssh/lunex_deploy`), creates `/home/lunex/.env` with fresh secrets on the first run (template: `deploy/.env.example`), rebuilds the image and restarts, then waits for `https://api.lunex.my/health/ready`. The image (`Dockerfile`) applies migrations and the reference data on start, both safe to repeat: the seed never overwrites a value an administrator changed.
+
+Settings live in `/home/lunex/.env` on the server: sign-in methods (`APPLE_CLIENT_IDS=uz.lunex.finance`; Google and Telegram are off until their settings are filled in), `EMAIL_PROVIDER` (`off` until a mail service is set up; `resend` with `RESEND_API_KEY` and `EMAIL_FROM` on a domain verified in Resend — the console mailer is refused in production) and `SENTRY_DSN`. After an edit run `docker compose up -d` there. `TRUST_PROXY=1` makes rate limits see the client's address behind Caddy.

@@ -13,6 +13,16 @@ export abstract class MailSender {
   abstract send(message: MailMessage): Promise<void>;
 }
 
+/** `EMAIL_PROVIDER=off`: nothing is sent; email sign-in is refused before it gets here. */
+export class DisabledMailSender extends MailSender {
+  async send(): Promise<void> {
+    throw new ServiceUnavailableException({
+      code: 'provider_disabled',
+      message: 'Email sign-in is not configured',
+    });
+  }
+}
+
 /** Development only: prints the message (including login codes) to the log. */
 export class ConsoleMailSender extends MailSender {
   private readonly logger = new Logger('ConsoleMailSender');

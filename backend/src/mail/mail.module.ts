@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
 import {
   ConsoleMailSender,
+  DisabledMailSender,
   MailSender,
   ResendMailSender,
 } from './mail-sender.js';
@@ -14,7 +15,9 @@ import {
       provide: MailSender,
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>): MailSender => {
-        if (config.get('EMAIL_PROVIDER', { infer: true }) === 'resend') {
+        const provider = config.get('EMAIL_PROVIDER', { infer: true });
+        if (provider === 'off') return new DisabledMailSender();
+        if (provider === 'resend') {
           // env validation guarantees both are set for the resend provider
           return new ResendMailSender(
             config.get('RESEND_API_KEY', { infer: true })!,
