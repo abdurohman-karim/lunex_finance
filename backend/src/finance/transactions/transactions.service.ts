@@ -20,6 +20,7 @@ import {
   changeWindowWhere,
   lastPosition,
 } from '../../sync/sync-window.js';
+import { AutoSaveTrigger } from '../../auto-save/auto-save.queue.js';
 import { NotificationsService } from '../../notifications/notifications.service.js';
 import { FxService } from '../fx.service.js';
 import { type BalanceMovement, netEffects } from './balance-effects.js';
@@ -178,6 +179,7 @@ export class TransactionsService {
     private readonly prisma: PrismaService,
     private readonly fx: FxService,
     private readonly notifications: NotificationsService,
+    private readonly autoSave: AutoSaveTrigger,
   ) {}
 
   // ---------- Reading ----------
@@ -318,7 +320,7 @@ export class TransactionsService {
     };
 
     try {
-      return this.spent(
+      return this.created(
         userId,
         await this.prisma.$transaction(async (tx) => {
           const data = await this.resolve(tx, userId, user, draft, null);
@@ -453,6 +455,14 @@ export class TransactionsService {
       return toDto(row, user);
     });
     return this.spent(userId, restored);
+  }
+
+  /** A new income or expense may set money aside by an auto-save rule (in the background). */
+  private created(userId: string, operation: TransactionDto): TransactionDto {
+    if (operation.type !== 'transfer') {
+      this.autoSave.operationCreated(userId, operation.id);
+    }
+    return this.spent(userId, operation);
   }
 
   /** More spending may cross a budget limit: the check runs in the background. */

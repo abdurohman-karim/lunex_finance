@@ -286,3 +286,62 @@ export function budgetAlert(
   };
   return { title: title[language], body: body[language] };
 }
+
+/** An auto-save rule set money aside: what and for which goal. */
+export function autoSaveDone(
+  input: {
+    goal: string;
+    emoji: string;
+    amount: string;
+    type: 'fixed_schedule' | 'percent_of_income' | 'round_up';
+    percent: string | null;
+  },
+  language: LanguageCode,
+): PushText {
+  const goal = quoted(input.goal, language);
+  const pct = percent(Number(input.percent ?? 0), language);
+  const body = {
+    fixed_schedule: {
+      uz: 'Jadval boʻyicha ajratildi.',
+      ru: 'Отложено по расписанию.',
+      en: 'Set aside on schedule.',
+    },
+    percent_of_income: {
+      uz: `Daromadning ${pct} qismi ajratildi.`,
+      ru: `Отложено ${pct} от дохода.`,
+      en: `${pct} of the income set aside.`,
+    },
+    round_up: {
+      uz: 'Xariddan qolgan qaytim ajratildi.',
+      ru: 'Отложена сдача от покупки.',
+      en: 'Spare change from a purchase set aside.',
+    },
+  }[input.type][language];
+  return {
+    title: `${input.emoji} ${goal}: +${input.amount}`,
+    body,
+  };
+}
+
+/** An auto-save run found too little money on its account and did nothing. */
+export function autoSaveSkipped(
+  input: { goal: string; emoji: string; account: string; amount: string },
+  language: LanguageCode,
+): PushText {
+  const goal = quoted(input.goal, language);
+  const account = quoted(input.account, language);
+  return {
+    uz: {
+      title: `${input.emoji} ${goal}: badal oʻtkazib yuborildi`,
+      body: `${account} hisobida ${input.amount} yetmadi.`,
+    },
+    ru: {
+      title: `${input.emoji} ${goal}: взнос пропущен`,
+      body: `На счёте ${account} не хватило ${input.amount}.`,
+    },
+    en: {
+      title: `${input.emoji} ${goal}: deposit skipped`,
+      body: `${account} didn’t have ${input.amount}.`,
+    },
+  }[language];
+}

@@ -177,7 +177,10 @@ enum NotificationType {
   goal_deadline
   recurring_due
   smart_save
+  /// Тихое: без звука, не чаще раза в день на правило
   auto_save_done
+  /// На счёте не хватило денег — взнос пропущен
+  auto_save_skipped
   weekly_report
   insight
 
@@ -743,11 +746,11 @@ model AutoSaveRules {
   user_id           String               @db.Uuid
   goal_id           String               @db.Uuid
   type              AutoSaveRuleType
-  /// Для fixed_schedule
+  /// Для fixed_schedule, в валюте счёта-источника
   amount            Decimal?             @db.Decimal(18, 2)
-  /// Для percent_of_income
+  /// Для percent_of_income: доля каждого дохода на счёт-источник
   percent           Decimal?             @db.Decimal(5, 2)
-  /// Для round_up: 1000, 5000, 10000
+  /// Для round_up: 1000, 5000, 10000 — шаг в валюте счёта-источника, округляются расходы с него
   round_to          Decimal?             @db.Decimal(18, 2)
   /// Для fixed_schedule
   frequency         RecurrenceFrequency?

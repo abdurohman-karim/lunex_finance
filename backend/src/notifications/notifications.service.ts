@@ -12,6 +12,7 @@ import type {
 import type { GoalDto } from '../goals/goals.service.js';
 import {
   CATEGORY_OF,
+  SILENT,
   decide,
   INBOX_SKIPS,
   minutesOf,
@@ -21,6 +22,8 @@ import {
   type SkipReason,
 } from './notification-rules.js';
 import {
+  autoSaveDone,
+  autoSaveSkipped,
   type CurrencyInfo,
   goalMilestone,
   money,
@@ -243,6 +246,82 @@ export class NotificationsService {
     );
   }
 
+  /** An auto-save rule set money aside: quietly, once a day per rule. */
+  async autoSaveDone(
+    userId: string,
+    input: {
+      ruleId: string;
+      type: 'fixed_schedule' | 'percent_of_income' | 'round_up';
+      percent: string | null;
+      goal: { id: string; title: string; emoji: string };
+      /** In the goal's currency */
+      amount: string;
+      currency: string;
+      day: string;
+    },
+    now = new Date(),
+  ): Promise<void> {
+    const { language, timezone } = await this.recipient(userId);
+    const currency = await this.currency(input.currency);
+    await this.notify(
+      {
+        userId,
+        type: 'auto_save_done',
+        dedupeKey: `auto_save_done:${input.ruleId}:${input.day}`,
+        text: autoSaveDone(
+          {
+            goal: input.goal.title,
+            emoji: input.goal.emoji,
+            amount: money(input.amount, currency, language),
+            type: input.type,
+            percent: input.percent,
+          },
+          language,
+        ),
+        data: { link: `lunex://goals/${input.goal.id}`, goalId: input.goal.id },
+        expiresAt: startOfLocalDay(addDays(input.day, 1), timezone),
+      },
+      now,
+    );
+  }
+
+  /** An auto-save run had too little money on its account: once a day per rule. */
+  async autoSaveSkipped(
+    userId: string,
+    input: {
+      ruleId: string;
+      goal: { id: string; title: string; emoji: string };
+      account: string;
+      /** In the account's currency */
+      amount: string;
+      currency: string;
+      day: string;
+    },
+    now = new Date(),
+  ): Promise<void> {
+    const { language, timezone } = await this.recipient(userId);
+    const currency = await this.currency(input.currency);
+    await this.notify(
+      {
+        userId,
+        type: 'auto_save_skipped',
+        dedupeKey: `auto_save_skipped:${input.ruleId}:${input.day}`,
+        text: autoSaveSkipped(
+          {
+            goal: input.goal.title,
+            emoji: input.goal.emoji,
+            account: input.account,
+            amount: money(input.amount, currency, language),
+          },
+          language,
+        ),
+        data: { link: `lunex://goals/${input.goal.id}`, goalId: input.goal.id },
+        expiresAt: startOfLocalDay(addDays(input.day, 2), timezone),
+      },
+      now,
+    );
+  }
+
   // ---------- Sending ----------
 
   /** Sends one notification if it is due, by the rules; safe to call twice. */
@@ -413,7 +492,9 @@ export class NotificationsService {
     const payload = {
       aps: {
         alert: { title: row.title, body: row.body },
-        sound: 'default',
+        ...(SILENT.has(row.type)
+          ? { 'interruption-level': 'passive' }
+          : { sound: 'default' }),
         'thread-id': row.type,
         ...(category ? { category } : {}),
       },

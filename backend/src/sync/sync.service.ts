@@ -1,6 +1,10 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AuthUser } from '../auth/auth.types.js';
+import {
+  type AutoSaveRuleDto,
+  AutoSaveService,
+} from '../auto-save/auto-save.service.js';
 import { BudgetService } from '../budget/budget.service.js';
 import {
   type RecurringRuleDto,
@@ -56,6 +60,7 @@ export interface PullResult {
   goals: GoalDto[];
   goalContributions: ContributionDto[];
   recurringRules: RecurringRuleDto[];
+  autoSaveRules: AutoSaveRuleDto[];
   /** The Central Bank's rates, new and corrected (a first sync: the last weeks') */
   exchangeRates: ExchangeRateDto[];
   /** Present when the settings changed */
@@ -92,6 +97,7 @@ export class SyncService {
     private readonly budget: BudgetService,
     private readonly recurring: RecurringService,
     private readonly fxRates: FxRatesService,
+    private readonly autoSave: AutoSaveService,
     config: ConfigService<Env, true>,
   ) {
     this.lagMs = config.get('SYNC_LAG_MS', { infer: true });
@@ -128,6 +134,7 @@ export class SyncService {
       goalContributions,
       settings,
       recurringRules,
+      autoSaveRules,
       exchangeRates,
     ] = await Promise.all([
       this.profileChanges(userId, window('profile')),
@@ -139,6 +146,7 @@ export class SyncService {
       this.goals.contributionChanges(userId, window('goalContributions')),
       this.profile.settingsChanges(userId, window('settings')),
       this.recurring.changes(userId, window('recurringRules')),
+      this.autoSave.changes(userId, window('autoSaveRules')),
       // Few rows a day, so no pages: everything new comes at once.
       this.fxRates.changes(cursor.exchangeRates ?? null, horizon, now),
     ]);
@@ -152,6 +160,7 @@ export class SyncService {
       goalContributions,
       settings,
       recurringRules,
+      autoSaveRules,
       exchangeRates,
     };
 
@@ -196,6 +205,7 @@ export class SyncService {
       goals: goals.items,
       goalContributions: goalContributions.items,
       recurringRules: recurringRules.items,
+      autoSaveRules: autoSaveRules.items,
       exchangeRates: exchangeRates.items,
       settings: settings.items[0] ?? null,
       nextCursor: encodeSyncCursor(next),
@@ -310,6 +320,12 @@ export class SyncService {
         return this.recurring.record(userId, op.id, op.data);
       case 'recurring.skip':
         return this.recurring.skip(userId, op.id, op.data);
+      case 'autoSave.create':
+        return this.autoSave.create(userId, op.data);
+      case 'autoSave.update':
+        return this.autoSave.update(userId, op.id, op.data);
+      case 'autoSave.delete':
+        return this.autoSave.remove(userId, op.id).then(() => null);
     }
   }
 

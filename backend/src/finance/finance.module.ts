@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AutoSaveQueueModule } from '../auto-save/auto-save-queue.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AccountsController } from './accounts/accounts.controller.js';
 import { AccountsService } from './accounts/accounts.service.js';
@@ -13,7 +14,7 @@ import { TransactionsController } from './transactions/transactions.controller.j
 import { TransactionsService } from './transactions/transactions.service.js';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, AutoSaveQueueModule],
   controllers: [
     AccountsController,
     CategoriesController,

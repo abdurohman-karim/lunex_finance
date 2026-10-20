@@ -13,6 +13,13 @@ export const DAILY_LIMIT = 3;
 export const REQUESTED: ReadonlySet<NotificationType> = new Set([
   'daily_reminder',
   'recurring_due',
+  'auto_save_done',
+  'auto_save_skipped',
+]);
+
+/** Shown quietly: no sound, no banner over what the user is doing. */
+export const SILENT: ReadonlySet<NotificationType> = new Set([
+  'auto_save_done',
 ]);
 
 /** The evening reminder comes at the time the user chose, even inside quiet hours. */
@@ -61,6 +68,7 @@ export const SETTING_OF: Record<NotificationType, NotificationSetting | null> =
     recurring_due: 'recurring_alerts_enabled',
     smart_save: 'smart_save_enabled',
     auto_save_done: 'goal_alerts_enabled',
+    auto_save_skipped: 'goal_alerts_enabled',
     weekly_report: 'weekly_report_enabled',
     insight: null,
   };

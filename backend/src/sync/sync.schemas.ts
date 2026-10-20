@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  createAutoSaveSchema,
+  updateAutoSaveSchema,
+} from '../auto-save/auto-save.schemas.js';
 import { budgetPlanSchema } from '../budget/budget.schemas.js';
 import { reorderSchema, uuidSchema } from '../common/schemas.js';
 import {
@@ -134,6 +138,18 @@ export const syncOperationSchema = z.discriminatedUnion('type', [
     id,
     data: skipRecurringSchema,
   }),
+  z.object({
+    opId,
+    type: z.literal('autoSave.create'),
+    data: createAutoSaveSchema,
+  }),
+  z.object({
+    opId,
+    type: z.literal('autoSave.update'),
+    id,
+    data: updateAutoSaveSchema,
+  }),
+  z.object({ opId, type: z.literal('autoSave.delete'), id }),
 ]);
 export type SyncOperation = z.infer<typeof syncOperationSchema>;
 
