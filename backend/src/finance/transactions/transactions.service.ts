@@ -21,6 +21,7 @@ import {
   lastPosition,
 } from '../../sync/sync-window.js';
 import { AutoSaveTrigger } from '../../auto-save/auto-save.queue.js';
+import { InsightsTrigger } from '../../insights/insights.queue.js';
 import { NotificationsService } from '../../notifications/notifications.service.js';
 import { FxService } from '../fx.service.js';
 import { type BalanceMovement, netEffects } from './balance-effects.js';
@@ -180,6 +181,7 @@ export class TransactionsService {
     private readonly fx: FxService,
     private readonly notifications: NotificationsService,
     private readonly autoSave: AutoSaveTrigger,
+    private readonly insights: InsightsTrigger,
   ) {}
 
   // ---------- Reading ----------
@@ -461,6 +463,9 @@ export class TransactionsService {
   private created(userId: string, operation: TransactionDto): TransactionDto {
     if (operation.type !== 'transfer') {
       this.autoSave.operationCreated(userId, operation.id);
+    }
+    if (operation.type === 'expense') {
+      this.insights.expenseCreated(userId, operation.id);
     }
     return this.spent(userId, operation);
   }

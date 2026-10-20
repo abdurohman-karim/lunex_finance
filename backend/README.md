@@ -171,6 +171,25 @@ Every call to Claude goes through `AiService.ask(userId, feature, request)` (`sr
 - Limits a day: the assistant `ai_daily_limit_free` (5) / `ai_daily_limit_pro` (50) by plan; voice/text parsing `ai_daily_limit_parse` (100) and receipts `ai_daily_limit_receipt` (30) as fair-use caps, both Lunex Pro (`voice_input`, `receipt_scan`); insights the server makes itself, none. Administrators change them in `app_settings`.
 - A request takes its place before the model is called, in one statement (`INSERT … ON CONFLICT … WHERE requests < limit`), so parallel requests cannot pass the limit; a full day answers 429 `ai_limit_reached` with `limit` and `resetsAt`. A failed call gives its place back: 502 `ai_failed` (the model did not answer after the SDK's retries) or 503 `ai_unavailable` (no key).
 
+## Insights
+
+The server works the numbers out; Claude puts them into words in the user's language (`InsightWriter`, counted as the `insight` feature). Without `ANTHROPIC_API_KEY`, or when the answer is not the JSON asked for, a template says the same from the same facts (`source: "template"`), so an insight never waits on the AI.
+
+| Endpoint | |
+| --- | --- |
+| `GET /v1/insights?before=&limit=` | the feed, newest first: `{ items, unread, nextBefore }` |
+| `GET /v1/insights/tip` | today's tip, made on the first request (free) |
+| `GET /v1/insights/:id` | one insight |
+| `POST /v1/insights/:id/read`, `POST /v1/insights/read` | mark one or all read |
+| `POST /v1/insights/goals/:id` | goal analysis (Pro `goal_analysis`): conclusion, next step, `score` 0–100 |
+
+- An insight is `{ kind, title, summary, recommendation, score, payload, goalId, transactionId, periodStart, periodEnd, language, source, readAt }`; `payload` holds the figures and chart data (reports: income, expense, the period before, top categories with their change, spending per day).
+- Lunex Pro (`ai_reports`), from the hourly `insights` job at the user's own hour: the weekly report on Sunday at 19:00 (the seven days to that day against the seven before, push `weekly_report`), last budget month's report on payday at 10:00 (push `weekly_report`, the same switch), and the budget forecast at 12:00 once 7 days of the month are gone and 3 are left — spending at the month's pace plus recurring payments due against the total limit, else the income basis less the savings target; once per month and verdict, pushed (`insight`) only when it heads over.
+- Anomalies (Pro): a new expense over three medians of its category's expenses in the 90 days before (at least 3 of them), checked by the `expense` job right after it is saved; pushed once (`insight`), and it leaves the feed if the expense is deleted.
+- The tip picks what matters today: no income yet, today over the limit, the primary goal behind schedule, a category over 35 % of the month's spending, the goal ahead, or simply what is safe to spend.
+- Goal score: with a deadline, savings against the steady pace (on pace 85, a fifth ahead or more 100, behind in proportion); without one, 30 + 0.4 × progress + 10 per month with a deposit of the last three; reached is 100. Asked again the same day with the same figures, the same analysis comes back.
+- Every insight has an id derived from what it is about (`uuidV5`), so jobs and retries make it once.
+
 ## Smart Save
 
 | Endpoint | |
