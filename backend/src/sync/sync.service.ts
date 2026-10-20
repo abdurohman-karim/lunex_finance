@@ -17,6 +17,10 @@ import {
   CategoriesService,
 } from '../finance/categories/categories.service.js';
 import {
+  type ExchangeRateDto,
+  FxRatesService,
+} from '../finance/fx-rates.service.js';
+import {
   type TransactionDto,
   TransactionsService,
 } from '../finance/transactions/transactions.service.js';
@@ -52,6 +56,8 @@ export interface PullResult {
   goals: GoalDto[];
   goalContributions: ContributionDto[];
   recurringRules: RecurringRuleDto[];
+  /** The Central Bank's rates, new and corrected (a first sync: the last weeks') */
+  exchangeRates: ExchangeRateDto[];
   /** Present when the settings changed */
   settings: SettingsDto | null;
   /** Send it back on the next pull */
@@ -85,6 +91,7 @@ export class SyncService {
     private readonly profile: ProfileService,
     private readonly budget: BudgetService,
     private readonly recurring: RecurringService,
+    private readonly fxRates: FxRatesService,
     config: ConfigService<Env, true>,
   ) {
     this.lagMs = config.get('SYNC_LAG_MS', { infer: true });
@@ -121,6 +128,7 @@ export class SyncService {
       goalContributions,
       settings,
       recurringRules,
+      exchangeRates,
     ] = await Promise.all([
       this.profileChanges(userId, window('profile')),
       this.accounts.changes(userId, window('accounts')),
@@ -131,6 +139,8 @@ export class SyncService {
       this.goals.contributionChanges(userId, window('goalContributions')),
       this.profile.settingsChanges(userId, window('settings')),
       this.recurring.changes(userId, window('recurringRules')),
+      // Few rows a day, so no pages: everything new comes at once.
+      this.fxRates.changes(cursor.exchangeRates ?? null, horizon, now),
     ]);
     const pages: Record<SyncStream, ChangesPage<unknown>> = {
       profile,
@@ -142,6 +152,7 @@ export class SyncService {
       goalContributions,
       settings,
       recurringRules,
+      exchangeRates,
     };
 
     const next: SyncCursor = {};
@@ -149,7 +160,11 @@ export class SyncService {
     for (const stream of SYNC_STREAMS) {
       const page = pages[stream];
       const after = cursor[stream];
-      if (page.items.length >= limit && page.last) {
+      if (
+        stream !== 'exchangeRates' &&
+        page.items.length >= limit &&
+        page.last
+      ) {
         hasMore = true;
         next[stream] = page.last;
       } else {
@@ -181,6 +196,7 @@ export class SyncService {
       goals: goals.items,
       goalContributions: goalContributions.items,
       recurringRules: recurringRules.items,
+      exchangeRates: exchangeRates.items,
       settings: settings.items[0] ?? null,
       nextCursor: encodeSyncCursor(next),
       hasMore,

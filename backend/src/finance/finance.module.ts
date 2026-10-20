@@ -4,6 +4,8 @@ import { AccountsController } from './accounts/accounts.controller.js';
 import { AccountsService } from './accounts/accounts.service.js';
 import { CategoriesController } from './categories/categories.controller.js';
 import { CategoriesService } from './categories/categories.service.js';
+import { CbuClient } from './cbu.client.js';
+import { FxRatesService } from './fx-rates.service.js';
 import { FxService } from './fx.service.js';
 import { RecurringController } from './recurring/recurring.controller.js';
 import { RecurringService } from './recurring/recurring.service.js';
@@ -21,6 +23,8 @@ import { TransactionsService } from './transactions/transactions.service.js';
   providers: [
     AccountsService,
     CategoriesService,
+    CbuClient,
+    FxRatesService,
     FxService,
     RecurringService,
     TransactionsService,
@@ -28,6 +32,7 @@ import { TransactionsService } from './transactions/transactions.service.js';
   exports: [
     AccountsService,
     CategoriesService,
+    FxRatesService,
     FxService,
     RecurringService,
     TransactionsService,

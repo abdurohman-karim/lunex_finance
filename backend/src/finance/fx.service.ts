@@ -1,70 +1,74 @@
 import { Injectable } from '@nestjs/common';
+import { addDays, asDbDate, type CalendarDate } from '../common/dates.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { Prisma } from '../generated/prisma/client.js';
+import { MAX_RATE_AGE_DAYS, PIVOT_CURRENCY, rateOn } from './fx-math.js';
 
 type Decimal = Prisma.Decimal;
 
-/** CBU publishes every rate against the sum, so cross rates go through UZS. */
-export const PIVOT_CURRENCY = 'UZS';
+export { MAX_RATE_AGE_DAYS, PIVOT_CURRENCY } from './fx-math.js';
 
 /**
- * CBU publishes on working days; a week covers weekends and holidays.
- * An older rate would silently mis-value the operation, so it counts as missing.
- */
-export const MAX_RATE_AGE_DAYS = 7;
-
-/**
- * Exchange rates from `exchange_rates`: the latest one on or before the date, at most a week old.
- * Rates are loaded daily from the Central Bank (build plan step «мультивалютность»).
+ * Exchange rates from `exchange_rates` (the Central Bank's, loaded by FxRatesService): the
+ * latest one on or before the date, at most a week old (`rateOn`).
  */
 @Injectable()
 export class FxService {
+  private currencies?: Promise<Map<number, string>>;
+
   constructor(private readonly prisma: PrismaService) {}
 
-  /** How many `to` one `from` buys on `date`; null when no rate is known. */
+  /**
+   * How many `to` one `from` buys on a day; null when no rate is known. An instant counts
+   * by its UTC date, as the app does.
+   */
   async rate(
     fromId: number,
     toId: number,
-    date: Date,
+    date: Date | CalendarDate,
   ): Promise<Decimal | null> {
-    if (fromId === toId) {
-      return new Prisma.Decimal(1);
-    }
-    const direct = await this.stored(fromId, toId, date);
-    if (direct) return direct;
-
-    const inverse = await this.stored(toId, fromId, date);
-    if (inverse) return new Prisma.Decimal(1).dividedBy(inverse);
-
-    const pivot = await this.prisma.currencies.findUnique({
-      where: { code: PIVOT_CURRENCY },
-    });
-    if (!pivot || pivot.id === fromId || pivot.id === toId) {
-      return null;
-    }
-    const [fromPivot, toPivot] = await Promise.all([
-      this.rate(fromId, pivot.id, date),
-      this.rate(toId, pivot.id, date),
-    ]);
-    return fromPivot && toPivot ? fromPivot.dividedBy(toPivot) : null;
-  }
-
-  private async stored(
-    baseId: number,
-    quoteId: number,
-    date: Date,
-  ): Promise<Decimal | null> {
-    const row = await this.prisma.exchangeRates.findFirst({
+    if (fromId === toId) return new Prisma.Decimal(1);
+    const day =
+      typeof date === 'string' ? date : date.toISOString().slice(0, 10);
+    const codes = await this.codes();
+    const from = codes.get(fromId);
+    const to = codes.get(toId);
+    if (!from || !to) return null;
+    const pivot = [...codes].find(([, code]) => code === PIVOT_CURRENCY)?.[0];
+    const ids = [fromId, toId, ...(pivot === undefined ? [] : [pivot])];
+    const rows = await this.prisma.exchangeRates.findMany({
       where: {
-        base_currency_id: baseId,
-        quote_currency_id: quoteId,
+        base_currency_id: { in: ids },
+        quote_currency_id: { in: ids },
         rate_date: {
-          lte: date,
-          gte: new Date(date.getTime() - MAX_RATE_AGE_DAYS * 86_400_000),
+          gte: asDbDate(addDays(day, -MAX_RATE_AGE_DAYS)),
+          lte: asDbDate(day),
         },
       },
-      orderBy: { rate_date: 'desc' },
+      select: {
+        base_currency_id: true,
+        quote_currency_id: true,
+        rate: true,
+        rate_date: true,
+      },
     });
-    return row?.rate ?? null;
+    return rateOn(
+      rows.map((row) => ({
+        base: codes.get(row.base_currency_id)!,
+        quote: codes.get(row.quote_currency_id)!,
+        rate: row.rate,
+        date: row.rate_date.toISOString().slice(0, 10),
+      })),
+      from,
+      to,
+      day,
+    );
+  }
+
+  private codes(): Promise<Map<number, string>> {
+    this.currencies ??= this.prisma.currencies
+      .findMany({ select: { id: true, code: true } })
+      .then((rows) => new Map(rows.map((row) => [row.id, row.code])));
+    return this.currencies;
   }
 }

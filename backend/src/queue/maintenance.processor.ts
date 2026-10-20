@@ -1,8 +1,12 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Job, Queue } from 'bullmq';
 import { EntitlementsService } from '../billing/entitlements.service.js';
 import { PrismaService } from '../database/prisma.service.js';
+import { localDate } from '../common/dates.js';
+import type { Env } from '../config/env.js';
+import { FxRatesService } from '../finance/fx-rates.service.js';
 import { RecurringService } from '../finance/recurring/recurring.service.js';
 import { SmartSaveService } from '../smart-save/smart-save.service.js';
 import { UsersService } from '../users/users.service.js';
@@ -26,6 +30,8 @@ export class MaintenanceProcessor
     private readonly entitlements: EntitlementsService,
     private readonly smartSave: SmartSaveService,
     private readonly recurring: RecurringService,
+    private readonly fxRates: FxRatesService,
+    private readonly config: ConfigService<Env, true>,
   ) {
     super();
   }
@@ -57,6 +63,23 @@ export class MaintenanceProcessor
       { pattern: '5 * * * *' },
       { name: MaintenanceJob.RecurringHourly },
     );
+    if (this.config.get('CBU_RATES_URL', { infer: true }) === '') {
+      // Loading is off (tests hand in rates of their own).
+      await this.queue.removeJobScheduler(MaintenanceJob.FxRates);
+      return;
+    }
+    // CBU sets rates in the day; a late run catches corrections.
+    await this.queue.upsertJobScheduler(
+      MaintenanceJob.FxRates,
+      { pattern: '10 0,9,15 * * *', tz: 'Asia/Tashkent' },
+      { name: MaintenanceJob.FxRates },
+    );
+    // A fresh install has no rates until the first run: one now, once a day of starts.
+    await this.queue.add(
+      MaintenanceJob.FxRates,
+      {},
+      { jobId: `fx-rates-start-${localDate(new Date(), 'Asia/Tashkent')}` },
+    );
   }
 
   async process(job: Job): Promise<unknown> {
@@ -75,6 +98,8 @@ export class MaintenanceProcessor
       }
       case MaintenanceJob.RecurringHourly:
         return this.recurring.runDue();
+      case MaintenanceJob.FxRates:
+        return this.fxRates.refresh();
       default:
         throw new Error(`Unknown maintenance job: ${job.name}`);
     }

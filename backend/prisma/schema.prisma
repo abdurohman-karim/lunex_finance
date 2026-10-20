@@ -260,11 +260,14 @@ model ExchangeRates {
   /// cbu — Центральный банк Узбекистана
   source            String   @default("cbu") @db.VarChar(32)
   created_at        DateTime @default(now())
+  /// Меняется при исправлении курса — по нему приложение получает новые курсы
+  updated_at        DateTime @default(now()) @updatedAt
 
   baseCurrency  Currencies @relation(fields: [base_currency_id], references: [id], name: "exchange_rates_base_currency_id")
   quoteCurrency Currencies @relation(fields: [quote_currency_id], references: [id], name: "exchange_rates_quote_currency_id")
 
   @@unique([base_currency_id, quote_currency_id, rate_date])
+  @@index([updated_at])
   @@map("exchange_rates")
 }
 

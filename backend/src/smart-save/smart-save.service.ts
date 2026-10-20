@@ -350,9 +350,13 @@ export class SmartSaveService {
           const result = await this.today(user.id, now);
           if (result.status === 'available') {
             prepared++;
+            const suggestion = result.suggestion!;
             await this.notifications.smartSaveReady(
               user.id,
-              result.suggestion!,
+              {
+                ...suggestion,
+                baseCurrency: suggestion.explanation.baseCurrency,
+              },
               now,
             );
           }

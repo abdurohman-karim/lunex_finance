@@ -75,6 +75,9 @@ export interface SmartSaveNotice {
   forDate: string;
   amount: string;
   currency: string;
+  /** In the base currency, shown beside a goal's other currency */
+  amountBase: string;
+  baseCurrency: string;
   expiresAt: Date;
   goal: { id: string; title: string; emoji: string };
 }
@@ -208,6 +211,12 @@ export class NotificationsService {
   ): Promise<void> {
     const { language } = await this.recipient(userId);
     const currency = await this.currency(suggestion.currency);
+    let amount = money(suggestion.amount, currency, language);
+    if (suggestion.baseCurrency !== suggestion.currency) {
+      // A goal in another currency: the sum of the day's rate beside it.
+      const base = await this.currency(suggestion.baseCurrency);
+      amount += ` (${money(suggestion.amountBase, base, language)})`;
+    }
     await this.notify(
       {
         userId,
@@ -215,7 +224,7 @@ export class NotificationsService {
         dedupeKey: `smart_save:${userId}:${suggestion.forDate}`,
         text: smartSave(
           {
-            amount: money(suggestion.amount, currency, language),
+            amount,
             goal: suggestion.goal.title,
             emoji: suggestion.goal.emoji,
           },

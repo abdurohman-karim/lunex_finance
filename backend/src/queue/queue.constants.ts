@@ -8,6 +8,8 @@ export const MaintenanceJob = {
   SmartSaveHourly: 'smart-save-hourly',
   /** Hourly: operations of recurring payments that create themselves, up to each user's today */
   RecurringHourly: 'recurring-hourly',
+  /** The Central Bank's rates: three times a day and once at start, filling missed days */
+  FxRates: 'fx-rates',
 } as const;
 
 /** Expired email login codes are kept this long for auditing attempts, then deleted. */

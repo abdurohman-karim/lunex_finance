@@ -75,6 +75,14 @@ export const envSchema = z
     /** `PUSH_PROVIDER=simulator`: a simulator UDID or `booted` */
     SIMULATOR_DEVICE: z.string().default('booted'),
 
+    /**
+     * Central Bank of Uzbekistan exchange rates (JSON); daily rates load from here.
+     * Empty turns loading off (tests).
+     */
+    CBU_RATES_URL: z
+      .union([z.url(), z.literal('')])
+      .default('https://cbu.uz/oz/arkhiv-kursov-valyut/json'),
+
     /** Redis key prefix of the job queues; tests use their own so a running server ignores them */
     QUEUE_PREFIX: z.string().min(1).default('lunex'),
 

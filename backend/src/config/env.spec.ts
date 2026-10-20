@@ -33,6 +33,7 @@ describe('validateEnv', () => {
       APNS_ENVIRONMENT: 'production',
       SIMULATOR_DEVICE: 'booted',
       QUEUE_PREFIX: 'lunex',
+      CBU_RATES_URL: 'https://cbu.uz/oz/arkhiv-kursov-valyut/json',
     });
   });
 
