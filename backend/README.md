@@ -202,6 +202,21 @@ A phrase said or typed in the app («кофе 25 тысяч», «зарплат�
 - Without `ANTHROPIC_API_KEY`, when the model fails or answers nonsense, or once the day's limit is used up, the server's rules read it instead (`phrase-rules.ts`): spoken multipliers (тыс, k, ming, млн, mln), currencies ($, долларов, евро), days (вчера, kecha, yesterday), several operations split on «и / va / and» or commas, categories by the user's own names, system names in every language and common words. So the user always gets cards to fix; only a Free user after monetization gets 403 `pro_required`.
 - `currency` is set only when the phrase names one; the app puts the operation on an account in that currency or converts it to the default account's at the day's rate.
 
+## Receipts and attachments
+
+The app reads a receipt on the device (Apple Vision, then its own rules for the total, the day and the shop) and asks the server only when it is unsure; the photo is attached to the operation it fills in. Lunex Pro (`receipt_scan`) to read and to add photos; photos already there stay readable.
+
+| Endpoint | |
+| --- | --- |
+| `POST /v1/ai/receipt` | multipart `file` (JPEG, PNG or WebP, up to 5 MB) and `text` (what the device read) → `{ source: "ai", amount, currency, date, merchant, categoryId, confidence }` |
+| `PUT /v1/attachments/:id` | multipart `file`, `transactionId`, `receipt` (what was read, JSON) → the attachment; the id comes from the app, so a resend stores it once |
+| `GET /v1/attachments/:id` | the photo itself (`Cache-Control: immutable`) |
+| `DELETE /v1/attachments/:id` | also the sync operation `attachment.delete` |
+
+- Claude's fast model looks at the photo with the device's text as a hint (counted as `receipt`, `ai_daily_limit_receipt` a day). Kept is what holds up: a positive total, a day not ahead and at most a year back, a three-letter currency, a known expense category. Without `ANTHROPIC_API_KEY` it answers 503 `ai_unavailable` and the app keeps its own reading.
+- A photo goes up once its operation is on the server (404 `transaction_not_found` until then); at most 5 per operation; the file must start like the image type it claims (`unsupported_file` otherwise). Adding or removing one touches the operation's `updated_at`, and operations carry `attachments: [{ id, mimeType, sizeBytes, ocrStatus, createdAt }]` in sync and the API.
+- Files live under `STORAGE_DIR` (default `storage/`), one folder per user; deleting an account removes the folder. Production mounts `/home/lunex/app/storage` into the container (`deploy/compose.yaml`, made by `setup.sh`).
+
 ## Smart Save
 
 | Endpoint | |

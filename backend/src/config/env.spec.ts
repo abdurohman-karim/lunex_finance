@@ -36,6 +36,7 @@ describe('validateEnv', () => {
       CLAUDE_MODEL_SMART: 'claude-sonnet-5-5',
       CLAUDE_MODEL_FAST: 'claude-haiku-5-5',
       QUEUE_PREFIX: 'lunex',
+      STORAGE_DIR: 'storage',
       CBU_RATES_URL: 'https://cbu.uz/oz/arkhiv-kursov-valyut/json',
     });
   });

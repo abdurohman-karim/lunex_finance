@@ -5,6 +5,7 @@
 #   2. database lunex_db and its role on the server's shared PostgreSQL
 #   3. https://api.lunex.my in HestiaCP: web domain of the lunex user, proxy template to
 #      127.0.0.1:3100, Let's Encrypt certificate
+#   4. storage/ for photos of receipts, writable by the API's user in the image (node, uid 1000)
 set -euo pipefail
 export PATH="$PATH:/usr/local/hestia/bin"
 cd "$(dirname "$0")"
@@ -76,4 +77,10 @@ if [ "$(field SSL)" != "yes" ]; then
   v-add-letsencrypt-domain "$user" "$domain"
   v-change-web-domain-proxy-tpl "$user" "$domain" lunex-api
 fi
+
+# 4. Photos of receipts (mounted into the API by compose.yaml)
+mkdir -p storage
+chown 1000:1000 storage
+chmod 700 storage
+
 echo "✓ Server ready: https://$domain → 127.0.0.1:3100, database $database"

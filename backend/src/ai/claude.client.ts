@@ -10,7 +10,8 @@ export type ClaudeTier = 'smart' | 'fast';
 export interface ClaudeRequest {
   tier: ClaudeTier;
   system: string;
-  messages: { role: 'user' | 'assistant'; content: string }[];
+  /** Text, or text with images (a receipt's photo) */
+  messages: Anthropic.MessageParam[];
   maxTokens: number;
 }
 

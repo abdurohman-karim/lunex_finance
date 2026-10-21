@@ -78,6 +78,7 @@ export const syncOperationSchema = z.discriminatedUnion('type', [
   }),
   z.object({ opId, type: z.literal('transaction.delete'), id }),
   z.object({ opId, type: z.literal('transaction.restore'), id }),
+  z.object({ opId, type: z.literal('attachment.delete'), id }),
   z.object({ opId, type: z.literal('goal.create'), data: createGoalSchema }),
   z.object({
     opId,

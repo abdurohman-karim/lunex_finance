@@ -12,6 +12,7 @@ import { AppSettingsService } from '../common/app-settings.service.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { DEFAULT_CURRENCY_CODE } from '../database/reference-data.js';
 import { Prisma } from '../generated/prisma/client.js';
+import { AttachmentStorage } from '../storage/attachment-storage.js';
 import type {
   AuthProvider,
   LanguageCode,
@@ -64,6 +65,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly tokens: TokensService,
     private readonly settings: AppSettingsService,
+    private readonly storage: AttachmentStorage,
   ) {}
 
   /**
@@ -443,5 +445,7 @@ export class UsersService {
       }
       await tx.users.delete({ where: { id: userId } });
     });
+    // Their photos go once the rows are gone.
+    await this.storage.removeUser(userId);
   }
 }

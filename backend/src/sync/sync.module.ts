@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AttachmentsModule } from '../attachments/attachments.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { AutoSaveModule } from '../auto-save/auto-save.module.js';
 import { BudgetModule } from '../budget/budget.module.js';
@@ -10,6 +11,7 @@ import { SyncService } from './sync.service.js';
 
 @Module({
   imports: [
+    AttachmentsModule,
     AuthModule,
     AutoSaveModule,
     BudgetModule,

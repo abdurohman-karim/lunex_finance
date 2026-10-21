@@ -5,6 +5,7 @@ import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { LoggerModule } from 'nestjs-pino';
 import { AuthModule } from './auth/auth.module.js';
 import { AiModule } from './ai/ai.module.js';
+import { AttachmentsModule } from './attachments/attachments.module.js';
 import { InputModule } from './input/input.module.js';
 import { InsightsModule } from './insights/insights.module.js';
 import { AutoSaveModule } from './auto-save/auto-save.module.js';
@@ -22,6 +23,7 @@ import { QueueModule } from './queue/queue.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { SmartSaveModule } from './smart-save/smart-save.module.js';
 import { SyncModule } from './sync/sync.module.js';
+import { StorageModule } from './storage/storage.module.js';
 
 @Module({
   imports: [
@@ -68,6 +70,8 @@ import { SyncModule } from './sync/sync.module.js';
     AiModule,
     InsightsModule,
     InputModule,
+    AttachmentsModule,
+    StorageModule,
     SmartSaveModule,
     ProfileModule,
     SyncModule,

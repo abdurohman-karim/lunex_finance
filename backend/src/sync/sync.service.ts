@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AttachmentsService } from '../attachments/attachments.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import {
   type AutoSaveRuleDto,
@@ -98,6 +99,7 @@ export class SyncService {
     private readonly recurring: RecurringService,
     private readonly fxRates: FxRatesService,
     private readonly autoSave: AutoSaveService,
+    private readonly attachments: AttachmentsService,
     config: ConfigService<Env, true>,
   ) {
     this.lagMs = config.get('SYNC_LAG_MS', { infer: true });
@@ -292,6 +294,8 @@ export class SyncService {
         return this.transactions.remove(userId, op.id).then(() => null);
       case 'transaction.restore':
         return this.transactions.restore(userId, op.id);
+      case 'attachment.delete':
+        return this.attachments.remove(userId, op.id).then(() => null);
       case 'goal.create':
         return this.goals.create(userId, op.data);
       case 'goal.update':

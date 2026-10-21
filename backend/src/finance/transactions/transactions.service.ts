@@ -20,6 +20,10 @@ import {
   changeWindowWhere,
   lastPosition,
 } from '../../sync/sync-window.js';
+import {
+  type AttachmentSummary,
+  toAttachmentSummary,
+} from '../../attachments/attachments.service.js';
 import { AutoSaveTrigger } from '../../auto-save/auto-save.queue.js';
 import { InsightsTrigger } from '../../insights/insights.queue.js';
 import { NotificationsService } from '../../notifications/notifications.service.js';
@@ -44,6 +48,16 @@ const include = {
   currency: { select: { code: true, decimals: true } },
   transferAccount: {
     select: { currency: { select: { code: true, decimals: true } } },
+  },
+  transactionAttachments: {
+    select: {
+      id: true,
+      mime_type: true,
+      size_bytes: true,
+      ocr_status: true,
+      created_at: true,
+    },
+    orderBy: { created_at: 'asc' },
   },
 } as const;
 type TransactionRow = Prisma.TransactionsGetPayload<{
@@ -76,6 +90,8 @@ export interface TransactionDto {
   merchant: string | null;
   occurredAt: Date;
   source: TransactionSource;
+  /** Photos of the receipt */
+  attachments: AttachmentSummary[];
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -131,6 +147,7 @@ function toDto(row: TransactionRow, user: UserContext): TransactionDto {
     merchant: row.merchant,
     occurredAt: row.occurred_at,
     source: row.source,
+    attachments: row.transactionAttachments.map(toAttachmentSummary),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,

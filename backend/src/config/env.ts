@@ -90,6 +90,9 @@ export const envSchema = z
     /** Parsing voice and text input and receipts */
     CLAUDE_MODEL_FAST: z.string().min(1).default('claude-haiku-5-5'),
 
+    /** Photos of receipts: a folder on this server's disk (production: a volume, see deploy/compose.yaml) */
+    STORAGE_DIR: z.string().min(1).default('storage'),
+
     /** Redis key prefix of the job queues; tests use their own so a running server ignores them */
     QUEUE_PREFIX: z.string().min(1).default('lunex'),
 

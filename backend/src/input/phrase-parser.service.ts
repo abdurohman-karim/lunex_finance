@@ -10,6 +10,7 @@ import {
   type ParsedOperation,
   parsePhrase,
 } from './phrase-rules.js';
+import { userCategories } from './user-categories.js';
 
 /** The furthest back a spoken day may go («на прошлой неделе» and the like). */
 const MAX_DAYS_BACK = 60;
@@ -76,7 +77,7 @@ export class PhraseParserService {
       },
     });
     const today = localDate(now, user.timezone);
-    const categories = await this.categories(userId, user.language);
+    const categories = await userCategories(this.prisma, userId, user.language);
 
     if (this.ai.available) {
       try {
@@ -193,46 +194,5 @@ export class PhraseParserService {
         ];
       })
       .slice(0, MAX_OPERATIONS);
-  }
-
-  /** Live categories: the user's own by their name, system ones by their label in every language. */
-  private async categories(
-    userId: string,
-    language: LanguageCode,
-  ): Promise<CategoryOption[]> {
-    const rows = await this.prisma.categories.findMany({
-      where: {
-        deleted_at: null,
-        is_archived: false,
-        OR: [{ user_id: null }, { user_id: userId }],
-      },
-      select: {
-        id: true,
-        type: true,
-        key: true,
-        name: true,
-        user_id: true,
-        categoryTranslations: { select: { language: true, label: true } },
-        categoryPreferences: {
-          where: { user_id: userId },
-          select: { is_archived: true },
-        },
-      },
-    });
-    return rows
-      .filter((row) => !row.categoryPreferences[0]?.is_archived)
-      .map((row) => {
-        const labels = row.categoryTranslations
-          .sort((a, b) =>
-            a.language === language ? -1 : b.language === language ? 1 : 0,
-          )
-          .map((t) => t.label);
-        return {
-          id: row.id,
-          type: row.type,
-          key: row.user_id ? null : row.key,
-          names: row.name ? [row.name] : labels,
-        };
-      });
   }
 }

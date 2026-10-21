@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { defineConfig } from 'vitest/config';
 import { e2eDatabaseUrl } from './test/support/e2e-database.js';
 
@@ -32,6 +34,8 @@ export default defineConfig({
       SYNC_LAG_MS: '0',
       // No calls to Claude: AI tests hand in a model of their own.
       ANTHROPIC_API_KEY: '',
+      // Photos of receipts go to a folder of their own, emptied by the tests.
+      STORAGE_DIR: join(tmpdir(), 'lunex-e2e-storage'),
     },
   },
 });

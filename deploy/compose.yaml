@@ -17,6 +17,10 @@ services:
       PORT: 3100
       # nginx is the one proxy in front
       TRUST_PROXY: 1
+      # Photos of receipts, kept on the server next to this file (setup.sh makes the folder)
+      STORAGE_DIR: /data/storage
+    volumes:
+      - ./storage:/data/storage
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3100/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 15s
