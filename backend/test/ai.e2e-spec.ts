@@ -174,15 +174,17 @@ describe('AI usage and limits (e2e)', () => {
 
   it('does not count a request the model failed', async () => {
     const session = await newUser();
-    await ask(session);
+    // Today, as the usage endpoint reads it.
+    const now = new Date();
+    await ask(session, 'assistant', now);
 
     claude.failure = new ClaudeUnavailableError('failed', 'down');
-    await expect(ask(session)).rejects.toMatchObject({
+    await expect(ask(session, 'assistant', now)).rejects.toMatchObject({
       status: 502,
       response: { code: 'ai_failed' },
     });
     claude.failure = new ClaudeUnavailableError('not_configured', 'no key');
-    await expect(ask(session)).rejects.toMatchObject({
+    await expect(ask(session, 'assistant', now)).rejects.toMatchObject({
       status: 503,
       response: { code: 'ai_unavailable' },
     });

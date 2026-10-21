@@ -190,6 +190,18 @@ The server works the numbers out; Claude puts them into words in the user's lang
 - Goal score: with a deadline, savings against the steady pace (on pace 85, a fifth ahead or more 100, behind in proportion); without one, 30 + 0.4 × progress + 10 per month with a deposit of the last three; reached is 100. Asked again the same day with the same figures, the same analysis comes back.
 - Every insight has an id derived from what it is about (`uuidV5`), so jobs and retries make it once.
 
+## Voice and text input
+
+A phrase said or typed in the app («кофе 25 тысяч», «зарплата 8 млн вчера», «taksi 30 ming», «обед 40 000 и такси 15 000») becomes operations to check before saving (`src/input`, Lunex Pro `voice_input`). The app recognises speech on the device and sends the text; the operations it then saves go through the sync queue with `source: "voice"` or `"text_ai"`.
+
+| Endpoint | |
+| --- | --- |
+| `POST /v1/ai/parse` | `{ text }` (1–500 characters) → `{ text, source: "ai" \| "rules", operations: [{ type, amount, currency, categoryId, date, note, confidence }] }` |
+
+- Claude's fast model reads the phrase with the user's live categories (counted as `parse_input`, `ai_daily_limit_parse` a day). Only what holds up is kept: a positive amount, a category of the operation's type, a day no later than today and at most 60 days back (otherwise today), a three-letter currency, at most 10 operations.
+- Without `ANTHROPIC_API_KEY`, when the model fails or answers nonsense, or once the day's limit is used up, the server's rules read it instead (`phrase-rules.ts`): spoken multipliers (тыс, k, ming, млн, mln), currencies ($, долларов, евро), days (вчера, kecha, yesterday), several operations split on «и / va / and» or commas, categories by the user's own names, system names in every language and common words. So the user always gets cards to fix; only a Free user after monetization gets 403 `pro_required`.
+- `currency` is set only when the phrase names one; the app puts the operation on an account in that currency or converts it to the default account's at the day's rate.
+
 ## Smart Save
 
 | Endpoint | |
