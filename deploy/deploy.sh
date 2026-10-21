@@ -19,7 +19,7 @@ echo "▸ Copying to $server:$dir"
 ssh "${ssh_opts[@]}" "$server" "mkdir -p $dir"
 rsync -az --delete -e "ssh ${ssh_opts[*]}" \
   --exclude node_modules --exclude dist --exclude coverage --exclude 'src/generated' \
-  --exclude '.env' --exclude '.env.*' --exclude '*.tsbuildinfo' \
+  --exclude '.env' --exclude '.env.*' --exclude '*.tsbuildinfo' --exclude '/storage' \
   backend/ "$server:$dir/backend/"
 rsync -az -e "ssh ${ssh_opts[*]}" \
   deploy/compose.yaml deploy/.env.example deploy/setup.sh deploy/hestia "$server:$dir/"
