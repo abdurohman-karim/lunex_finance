@@ -63,13 +63,27 @@ With `EMAIL_PROVIDER=console` the email login code is printed to the server log.
 
 ## Lunex Pro
 
-`GET /v1/me/access` returns the plan, its source (`monetization_off`, `trial`, `app_store`, `promo`, or `null` on Free), the trial, the Pro features and the limits. The app calls it on launch and on return from background.
+`GET /v1/me/access` returns the plan, its source (`monetization_off`, `trial`, `app_store`, `promo`, or `null` on Free), the trial, the Pro features, the limits and both plans' limits (`plans.free`, `plans.pro`, for the Lunex Pro screen). The app calls it on launch and on return from background.
 
 - While `app_settings.monetization_enabled` is `false` everyone has Pro and nothing is locked; the trial is still recorded from sign-up.
 - Once it is `true`, Pro needs a subscription that is `active` or in `grace_period` and not expired; otherwise the Free limits apply (`free_max_accounts`, `free_max_goals`, `ai_daily_limit_free`, two months of analytics).
 - Settings are cached for 10 seconds per instance, so a change reaches every instance within that time.
 - In feature code: `@RequiresPro('auto_save')` on a route (403 `pro_required`), and `entitlements.assertCanCreate(userId, 'accounts' | 'active_goals')` before creating or re-activating a capped record (403 `free_limit_reached`). Archived accounts and paused goals do not count; records above the cap stay readable.
 - An hourly maintenance job marks ended subscriptions `expired`.
+
+### App Store
+
+The subscriptions `lunex.pro.monthly` and `lunex.pro.yearly` (group «Lunex Pro»), bought with StoreKit 2; the app sets `appAccountToken` to the user's id.
+
+| Endpoint | |
+| --- | --- |
+| `POST /v1/billing/app-store/transactions` | `{ signedTransaction }` (StoreKit's `jwsRepresentation`: a purchase, a renewal, a restore) → the access |
+| `POST /v1/billing/app-store/notifications` | public: App Store Server Notifications V2 `{ signedPayload }`; set this URL in App Store Connect for Production and Sandbox |
+
+- Signed data is checked with Apple's certificate chain (App Store Server Library, Apple Root CA - G3 in `apple-root-ca.ts`), for the bundle id and the environments in `APP_STORE_ENVIRONMENTS`: Production (needs `APP_STORE_APP_APPLE_ID`) and Sandbox on the server; Xcode (StoreKit testing, signed locally) only in development. Anything else answers 400 `invalid_purchase` / `invalid_notification`.
+- One `subscriptions` row per original transaction. A purchase whose token names another user, or a subscription already linked to another account, answers 409 `purchase_linked_elsewhere`.
+- Notifications are kept in `store_events` by their UUID and applied once: SUBSCRIBED, DID_RENEW and the like extend (the end of an active subscription never moves back), DID_FAIL_TO_RENEW with GRACE_PERIOD keeps Pro until the grace period ends, EXPIRED and GRACE_PERIOD_EXPIRED end it, REFUND and REVOKE revoke it, DID_CHANGE_RENEWAL_STATUS sets `auto_renew`. One for an account not known yet is kept with `unknown_account`; a failure to apply answers 500, so the App Store sends it again.
+- With an In-App Purchase key (`APP_STORE_KEY_ID`, `APP_STORE_ISSUER_ID`, `APP_STORE_PRIVATE_KEY`) the server also asks the App Store Server API for the subscription's latest state when the app sends a transaction (a refund the device has not seen yet).
 
 ## Accounts and categories
 

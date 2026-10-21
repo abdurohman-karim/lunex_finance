@@ -36,6 +36,9 @@ export default defineConfig({
       ANTHROPIC_API_KEY: '',
       // Photos of receipts go to a folder of their own, emptied by the tests.
       STORAGE_DIR: join(tmpdir(), 'lunex-e2e-storage'),
+      // Purchases signed by Xcode's StoreKit testing; Sandbox ones need Apple's signature.
+      APP_STORE_ENVIRONMENTS: 'Xcode,Sandbox',
+      APP_STORE_APP_APPLE_ID: '',
     },
   },
 });

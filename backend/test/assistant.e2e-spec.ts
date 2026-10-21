@@ -54,13 +54,22 @@ const say = (text: string): Partial<ClaudeReply> => ({
   stopReason: 'end_turn',
 });
 
+/** A tool call as the API returns it (only the fields the server reads). */
+const toolUse = (name: string, input: Record<string, unknown>, id?: string) =>
+  ({
+    type: 'tool_use',
+    id: id ?? `toolu_${randomUUID()}`,
+    name,
+    input,
+  }) as unknown as NonNullable<ClaudeReply['content']>[number];
+
 const use = (
   name: string,
   input: Record<string, unknown>,
 ): Partial<ClaudeReply> => ({
   text: '',
   stopReason: 'tool_use',
-  content: [{ type: 'tool_use', id: `toolu_${randomUUID()}`, name, input }],
+  content: [toolUse(name, input)],
 });
 
 /** The ref the prompt gives a category, by one of its names. */
@@ -398,15 +407,14 @@ describe('AI assistant (e2e)', () => {
         text: '',
         stopReason: 'tool_use',
         content: ['goals', 'budget', 'accounts', 'recurring', 'operations'].map(
-          (name) => ({
-            type: 'tool_use' as const,
-            id: `toolu_${name}`,
-            name,
-            input:
+          (name) =>
+            toolUse(
+              name,
               name === 'operations'
                 ? { from: addDays(today(), -30), to: today(), order: 'largest' }
                 : {},
-          }),
+              `toolu_${name}`,
+            ),
         ),
       }),
       () => say('Готово.'),

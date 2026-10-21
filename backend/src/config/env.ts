@@ -75,6 +75,39 @@ export const envSchema = z
     /** `PUSH_PROVIDER=simulator`: a simulator UDID or `booted` */
     SIMULATOR_DEVICE: z.string().default('booted'),
 
+    /** Lunex Pro purchases: the app's bundle id, as transactions carry it */
+    APP_STORE_BUNDLE_ID: z.string().default('uz.lunex.finance'),
+    /** The app's Apple ID in App Store Connect; transactions of Production are checked against it */
+    APP_STORE_APP_APPLE_ID: z.preprocess(
+      emptyToUndefined,
+      z.coerce.number().int().positive().optional(),
+    ),
+    /**
+     * App Store environments purchases are accepted from: Production and Sandbox (TestFlight)
+     * on the server; Xcode for StoreKit testing in development (not signed by Apple).
+     */
+    APP_STORE_ENVIRONMENTS: z.preprocess(
+      (value) =>
+        typeof value === 'string'
+          ? value
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean)
+          : (value ?? ['Production', 'Sandbox']),
+      z.array(z.enum(['Production', 'Sandbox', 'Xcode'])).min(1),
+    ),
+    /**
+     * In-App Purchase key (App Store Connect → Users and Access → Integrations): with it the
+     * server asks the App Store Server API for a subscription's latest state.
+     */
+    APP_STORE_KEY_ID: z.preprocess(emptyToUndefined, z.string().optional()),
+    APP_STORE_ISSUER_ID: z.preprocess(emptyToUndefined, z.string().optional()),
+    /** Contents of the .p8 file; line breaks may be written as \n */
+    APP_STORE_PRIVATE_KEY: z.preprocess(
+      emptyToUndefined,
+      z.string().optional(),
+    ),
+
     /**
      * Central Bank of Uzbekistan exchange rates (JSON); daily rates load from here.
      * Empty turns loading off (tests).
@@ -116,6 +149,22 @@ export const envSchema = z
             code: 'custom',
             path: [key],
             message: `${key} is required when EMAIL_PROVIDER=resend`,
+          });
+        }
+      }
+    }
+    const storeKey = [
+      'APP_STORE_KEY_ID',
+      'APP_STORE_ISSUER_ID',
+      'APP_STORE_PRIVATE_KEY',
+    ] as const;
+    if (storeKey.some((key) => env[key])) {
+      for (const key of storeKey) {
+        if (!env[key]) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `${key} is required with the other App Store key settings`,
           });
         }
       }

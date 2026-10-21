@@ -61,6 +61,8 @@ export interface Access {
   } | null;
   features: ProFeature[];
   limits: AccessLimits;
+  /** What each plan gives, for the Lunex Pro screen's comparison */
+  plans: { free: AccessLimits; pro: AccessLimits };
 }
 
 function isLive(subscription: SubscriptionRow, now: Date): boolean {
@@ -121,6 +123,7 @@ export function resolveAccess(
     trial,
     features: isPro ? [...PRO_FEATURES] : [],
     limits: isPro ? proLimits : freeLimits,
+    plans: { free: freeLimits, pro: proLimits },
   };
 }
 
