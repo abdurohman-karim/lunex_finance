@@ -4,7 +4,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { AiFeature } from '../generated/prisma/enums.js';
-import { AiUsageService } from './ai-usage.service.js';
+import { AiUsageService, type TokenUsage } from './ai-usage.service.js';
 import {
   ClaudeClient,
   type ClaudeReply,
@@ -34,14 +34,39 @@ export class AiService {
     request: ClaudeRequest,
     now = new Date(),
   ): Promise<ClaudeReply> {
+    return this.converse(userId, feature, (complete) => complete(request), now);
+  }
+
+  /**
+   * Several calls to the model counted as one request: the assistant looks data up with
+   * tools and answers in one message. The tokens of every call add up.
+   */
+  async converse<T>(
+    userId: string,
+    feature: AiFeature,
+    steps: (
+      complete: (request: ClaudeRequest) => Promise<ClaudeReply>,
+    ) => Promise<T>,
+    now = new Date(),
+  ): Promise<T> {
     if (!this.claude.available) throw this.unavailable();
     try {
-      return await this.usage.run(
+      const { result } = await this.usage.run(
         userId,
         feature,
-        () => this.claude.complete(request),
+        async () => {
+          const usage: TokenUsage = { inputTokens: 0, outputTokens: 0 };
+          const result = await steps(async (request) => {
+            const reply = await this.claude.complete(request);
+            usage.inputTokens += reply.usage.inputTokens;
+            usage.outputTokens += reply.usage.outputTokens;
+            return reply;
+          });
+          return { result, usage };
+        },
         now,
       );
+      return result;
     } catch (error) {
       if (error instanceof ClaudeUnavailableError) {
         throw error.reason === 'not_configured'

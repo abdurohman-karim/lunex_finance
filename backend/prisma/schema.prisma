@@ -852,6 +852,8 @@ model AiMessages {
   content         String
   /// Предложенные действия: создать цель, задать лимит — выполняются только после подтверждения
   actions         Json?
+  /// Мини-графики ответа: вид, подписи и значения из данных, на которые опирается ответ
+  charts          Json?
   input_tokens    Int?
   output_tokens   Int?
   created_at      DateTime      @default(now())

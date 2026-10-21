@@ -10,15 +10,22 @@ export type ClaudeTier = 'smart' | 'fast';
 export interface ClaudeRequest {
   tier: ClaudeTier;
   system: string;
-  /** Text, or text with images (a receipt's photo) */
+  /** Text, or text with images (a receipt's photo), or tool calls and their results */
   messages: Anthropic.MessageParam[];
   maxTokens: number;
+  /** What the model may look up (the assistant's data) */
+  tools?: Anthropic.Tool[];
+  toolChoice?: Anthropic.ToolChoice;
 }
 
 export interface ClaudeReply {
   text: string;
   model: string;
   usage: TokenUsage;
+  /** Every block of the answer, tool calls included */
+  content?: Anthropic.ContentBlock[];
+  /** `tool_use` when the model waits for tool results */
+  stopReason?: string | null;
 }
 
 /** The model could not answer: no key set, or the API failed after its retries. */
@@ -67,6 +74,8 @@ export class ClaudeClient {
         max_tokens: request.maxTokens,
         system: request.system,
         messages: request.messages,
+        ...(request.tools ? { tools: request.tools } : {}),
+        ...(request.toolChoice ? { tool_choice: request.toolChoice } : {}),
       });
       const text = message.content
         .flatMap((block) => (block.type === 'text' ? [block.text] : []))
@@ -75,6 +84,8 @@ export class ClaudeClient {
       return {
         text,
         model: message.model,
+        content: message.content,
+        stopReason: message.stop_reason,
         usage: {
           // Cached input is input too: the day's figures show what was sent.
           inputTokens:

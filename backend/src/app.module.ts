@@ -5,6 +5,7 @@ import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { LoggerModule } from 'nestjs-pino';
 import { AuthModule } from './auth/auth.module.js';
 import { AiModule } from './ai/ai.module.js';
+import { AssistantModule } from './assistant/assistant.module.js';
 import { AttachmentsModule } from './attachments/attachments.module.js';
 import { InputModule } from './input/input.module.js';
 import { InsightsModule } from './insights/insights.module.js';
@@ -71,6 +72,7 @@ import { StorageModule } from './storage/storage.module.js';
     InsightsModule,
     InputModule,
     AttachmentsModule,
+    AssistantModule,
     StorageModule,
     SmartSaveModule,
     ProfileModule,

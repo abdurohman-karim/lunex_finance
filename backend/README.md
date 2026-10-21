@@ -202,6 +202,22 @@ A phrase said or typed in the app («кофе 25 тысяч», «зарплат�
 - Without `ANTHROPIC_API_KEY`, when the model fails or answers nonsense, or once the day's limit is used up, the server's rules read it instead (`phrase-rules.ts`): spoken multipliers (тыс, k, ming, млн, mln), currencies ($, долларов, евро), days (вчера, kecha, yesterday), several operations split on «и / va / and» or commas, categories by the user's own names, system names in every language and common words. So the user always gets cards to fix; only a Free user after monetization gets 403 `pro_required`.
 - `currency` is set only when the phrase names one; the app puts the operation on an account in that currency or converts it to the default account's at the day's rate.
 
+## Assistant
+
+A chat about the user's own money (`src/assistant`). Claude's smart model answers in the user's language and takes every figure from tools that read the user's data; what it offers to do waits for the user's confirmation.
+
+| Endpoint | |
+| --- | --- |
+| `POST /v1/assistant/messages` | `{ conversationId, messageId, text }` (ids from the app; a new conversation id starts one) → `{ conversation, messages: [question, answer], usage }` |
+| `GET /v1/assistant/conversations` | the history, newest first |
+| `GET /v1/assistant/conversations/:id/messages` | one conversation |
+| `DELETE /v1/assistant/conversations[/:id]` | one conversation, or all, messages and all |
+| `POST /v1/assistant/messages/:id/actions/:index` | `{ decision: confirm \| decline }` on a proposed action → the message |
+
+- Tools (`assistant-tools.ts`): `spending` (totals, categories and a series over a period), `operations`, `goals` (with the pace of the last three months and when the goal is reached at it), `budget`, `accounts`, `recurring`; money comes worded the user's way. `propose_goal`, `propose_category_limit` and `propose_recurring` only add cards: confirming creates the goal, sets the limit in this month's plan or adds a reminder-only recurring payment on the default account, through the same services as the app (Pro and Free limits apply), with an id derived from the message, so confirming twice makes one.
+- An answer carries up to two mini charts (`bars` over time, `categories`, `progress` of goals) from the figures the tools found, and up to three actions.
+- One message is one request of the day's limit (`ai_daily_limit_free` 5 / `ai_daily_limit_pro` 50), however many look-ups it takes (at most 5). A failed answer is not counted and the question stays; the same `messageId` again is «Повторить» and returns the answer if there is one. Without `ANTHROPIC_API_KEY` it answers 503 `ai_unavailable`.
+
 ## Receipts and attachments
 
 The app reads a receipt on the device (Apple Vision, then its own rules for the total, the day and the shop) and asks the server only when it is unsure; the photo is attached to the operation it fills in. Lunex Pro (`receipt_scan`) to read and to add photos; photos already there stay readable.
