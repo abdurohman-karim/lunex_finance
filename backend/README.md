@@ -61,6 +61,16 @@ With `EMAIL_PROVIDER=console` the email login code is printed to the server log.
 - An APNs token moves with a reinstall: another device that had it stops getting pushes.
 - Profile and settings sync too: streams `profile` and `settings`, operations `profile.update` and `settings.update`.
 
+## Export of all data
+
+`GET /v1/me/export` (spec: «Экспорт всех своих данных») answers with `lunex-export-YYYY-MM-DD.zip`, free on every plan, at most 5 an hour (`rate_limited`):
+
+- `data.json` — everything the server keeps about the user: profile, settings, sign-in methods (provider and email), devices, accounts, own categories and the system ones with their names, operations, attachments, recurring payments, budgets with category limits, goals, contributions, milestones, auto-save rules, Smart Save offers, insights, assistant conversations with messages, notifications, subscriptions and AI usage. Records the user deleted but the server still keeps carry `deletedAt`. Names are camelCase, money is an exact string, currencies are codes, days are `YYYY-MM-DD`, times `HH:MM`.
+- `receipts/<attachment id>.jpg|png|webp` — the photos of receipts, read one by one while the archive streams out (`src/data-export/zip.ts`, a classic ZIP made with Node's own `zlib`).
+- Left out are secrets and what belongs to Apple: refresh tokens, sign-in codes, push tokens, storage keys and App Store's signed payloads.
+
+The CSV table and the PDF report of a period are made by the app from its own store (Lunex Pro `export`).
+
 ## Lunex Pro
 
 `GET /v1/me/access` returns the plan, its source (`monetization_off`, `trial`, `app_store`, `promo`, or `null` on Free), the trial, the Pro features, the limits and both plans' limits (`plans.free`, `plans.pro`, for the Lunex Pro screen). The app calls it on launch and on return from background.

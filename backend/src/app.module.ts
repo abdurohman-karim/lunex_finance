@@ -8,6 +8,7 @@ import { AiModule } from './ai/ai.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { AssistantModule } from './assistant/assistant.module.js';
 import { AttachmentsModule } from './attachments/attachments.module.js';
+import { DataExportModule } from './data-export/data-export.module.js';
 import { InputModule } from './input/input.module.js';
 import { InsightsModule } from './insights/insights.module.js';
 import { AutoSaveModule } from './auto-save/auto-save.module.js';
@@ -74,6 +75,7 @@ import { StorageModule } from './storage/storage.module.js';
     InputModule,
     AttachmentsModule,
     AssistantModule,
+    DataExportModule,
     AdminModule,
     StorageModule,
     SmartSaveModule,
