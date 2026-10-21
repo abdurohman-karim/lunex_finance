@@ -110,6 +110,54 @@ export class UsersService {
     });
   }
 
+  /**
+   * The admin panel: a session only for an existing administrator, found by the identity or
+   * its verified email. Anyone else gets the same `admin_only`, whether the account exists or not.
+   */
+  async signInAdmin(
+    identity: VerifiedIdentity,
+    device: DeviceInput,
+    now = new Date(),
+  ): Promise<SignInResult> {
+    return this.prisma.$transaction(async (tx) => {
+      const known = await tx.authIdentities.findUnique({
+        where: {
+          provider_subject: {
+            provider: identity.provider,
+            subject: identity.subject,
+          },
+        },
+        include: { user: true },
+      });
+      const user =
+        known?.user ??
+        (identity.email && identity.emailVerified
+          ? await tx.users.findUnique({ where: { email: identity.email } })
+          : null);
+      if (!user || user.role !== 'admin' || user.deleted_at) {
+        throw new ForbiddenException({
+          code: 'admin_only',
+          message: 'This account is not an administrator',
+        });
+      }
+      if (known) {
+        await tx.authIdentities.update({
+          where: { id: known.id },
+          data: { last_used_at: now },
+        });
+      } else {
+        await this.createIdentity(tx, user.id, identity, now);
+      }
+      await this.attachDevice(tx, user.id, device, now);
+      const tokens = await this.tokens.issue(tx, user, device.id, now);
+      return {
+        user: await this.loadProfile(tx, user.id),
+        isNewUser: false,
+        tokens,
+      };
+    });
+  }
+
   private async resolveUser(
     tx: Prisma.TransactionClient,
     identity: VerifiedIdentity,
@@ -226,6 +274,7 @@ export class UsersService {
       await this.tokens.revokeDevice(device.id, now, tx);
     }
     const info = {
+      platform: device.platform,
       model: device.model,
       os_version: device.osVersion,
       app_version: device.appVersion,

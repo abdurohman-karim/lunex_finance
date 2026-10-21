@@ -190,7 +190,8 @@ describe('AI usage and limits (e2e)', () => {
     });
 
     const [row] = await rows(session);
-    expect(row).toMatchObject({ requests: 1, input_tokens: 120 });
+    // Both failures are counted for the admin panel's monitoring, not against the limit.
+    expect(row).toMatchObject({ requests: 1, input_tokens: 120, failed: 2 });
     const res = await http.get('/v1/ai/usage').set(session.auth).expect(200);
     expect(res.body.features[0]).toMatchObject({ used: 1, remaining: 49 });
   });

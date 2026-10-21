@@ -303,6 +303,29 @@ The app works offline against its local store and talks to two endpoints.
 - A 5xx or 429 fails the whole request; resend the same batch later. Every operation is idempotent (ids come from the app), so replays change nothing.
 - Conflicts resolve as last write wins, in the order the server receives writes.
 
+## Admin panel
+
+A web panel at `/admin/` on the API's own host (`https://api.lunex.my/admin/`): static files in `admin/` (no build step), served by Nest next to the API, talking to `/v1/admin/*`.
+
+- Only users with the role `admin` get in, through the same sign-in as the app with `admin: true` and `device.platform: "web"` in the body: a code by email or Telegram Login (`/v1/auth/telegram/start?to=admin` comes back to `/admin/`). An admin sign-in never creates an account (403 `admin_only`). Apple and Google need a web client of their own (Services ID, a web OAuth client) and are not offered on the web yet. The panel keeps the refresh token in the tab's `sessionStorage`; its sessions are web devices of the admin.
+- Give or take the role with `npm run admin:role -- grant|revoke <email or user id>`; in production `docker compose exec api npm run admin:role -- grant someone@example.com`. `AdminGuard` reads the role from the database on every request, so revoking works at once.
+
+| Endpoint | |
+| --- | --- |
+| `GET /v1/admin/me` | the signed-in administrator |
+| `GET /v1/admin/settings`, `PUT /v1/admin/settings/:key` | `app_settings` with defaults, who changed them and when; `{ value }` within each key's bounds (`invalid_value`) |
+| `GET /v1/admin/monetization`, `PUT /v1/admin/monetization` | what switching would change (`users`, `subscribers`, `promo`, `trials`, `toFree`); `{ enabled }` |
+| `GET /v1/admin/currencies`, `PATCH /v1/admin/currencies/:code` | name, symbol, Smart Save rounding step and minimum, active, order |
+| `GET /v1/admin/categories`, `POST /v1/admin/categories`, `PATCH /v1/admin/categories/:id` | system categories with labels uz / ru / en; a new one gets the id every environment derives from its key (409 `category_exists`) |
+| `GET /v1/admin/users?q=` | up to 20 by id, email, name or Telegram id, with plan, trial and promo |
+| `POST /v1/admin/users/:id/promo` | `{ days }` of Lunex Pro from now, or from the end of a running promo |
+| `GET /v1/admin/audit?before=&limit=` | the journal, newest first |
+| `GET /v1/admin/monitoring` | users, trials and subscriptions, App Store notifications of the last day and failing ones, AI requests, tokens and failures over 14 days by feature, and each queue's counts, schedules and last failed jobs |
+
+- Every change goes into `admin_audit_log` in the same transaction: who, when, what, the value before and after (`setting.update`, `monetization.enable|disable`, `currency.update`, `category.create|update`, `subscription.grant`).
+- Settings reach every API process within the settings cache's 10 seconds; the app reads monetization and limits on start and on return from the background. A changed system category bumps its `updated_at`, so devices get it with their next sync. Currencies are the server's: Smart Save uses the new step and minimum at once, push texts the new symbol within a minute, and an inactive currency takes no new accounts, goals or base currency; the app keeps its own list of currencies.
+- Failed AI requests give their place back and are counted in `ai_usage_daily.failed` for the monitoring.
+
 ## Checks
 
 ```bash
@@ -316,7 +339,7 @@ npm run test:e2e    # needs compose services; uses its own database lunex_e2e (c
 
 - `npm run db:migrate -- --name <change>` — create a migration from `prisma/schema.prisma` and regenerate Prisma Client (Prisma 7 `migrate dev` no longer does it).
 - `npm run db:deploy` — apply migrations (CI, production).
-- `npm run db:seed` — idempotent; updates currencies and system categories, but only inserts missing `app_settings` keys so values changed by an administrator are kept.
+- `npm run db:seed` — idempotent and insert-only: adds missing currencies, system categories, their translations and `app_settings` keys, so whatever an administrator changed in the panel is kept.
 - System category ids are UUID v5 of `category:<type>:<key>` (`src/database/reference-data.ts`), identical on every environment and in the iOS app.
 
 ## Production

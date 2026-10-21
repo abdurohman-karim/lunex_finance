@@ -56,6 +56,8 @@ enum DevicePlatform {
   ios
   ipados
   watchos
+  /// Веб-панель администратора
+  web
 
   @@map("device_platform")
 }
@@ -942,6 +944,8 @@ model AiUsageDaily {
   requests      Int       @default(0)
   input_tokens  Int       @default(0)
   output_tokens Int       @default(0)
+  /// Запросы, на которые модель не ответила, — для мониторинга; в лимит не входят
+  failed        Int       @default(0)
 
   user Users @relation(fields: [user_id], references: [id])
 

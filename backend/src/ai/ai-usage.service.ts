@@ -153,10 +153,10 @@ export class AiUsageService {
     });
   }
 
-  /** The request failed: its place goes back. */
+  /** The request failed: its place goes back, and the failure is counted for monitoring. */
   async release(reservation: Reservation): Promise<void> {
     await this.prisma.$executeRaw`
-      UPDATE ai_usage_daily SET requests = GREATEST(requests - 1, 0)
+      UPDATE ai_usage_daily SET requests = GREATEST(requests - 1, 0), failed = failed + 1
       WHERE user_id = ${reservation.userId}::uuid
         AND usage_date = ${reservation.date}::date
         AND feature = ${reservation.feature}::ai_feature`;

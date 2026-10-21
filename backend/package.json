@@ -25,6 +25,7 @@
     "db:migrate": "prisma migrate dev && prisma generate",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "admin:role": "tsx scripts/admin-role.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

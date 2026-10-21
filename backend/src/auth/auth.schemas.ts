@@ -6,6 +6,8 @@ export const languageSchema = z.enum(['uz', 'ru', 'en']);
 /** The installation's id (kept in the Keychain) and what it runs; one refresh-token family per device. */
 export const deviceSchema = z.object({
   id: uuidSchema,
+  /** `web`: the admin panel in a browser */
+  platform: z.enum(['ios', 'web']).default('ios'),
   model: z.string().max(64).optional(),
   osVersion: z.string().max(32).optional(),
   appVersion: z.string().max(32).optional(),
@@ -14,6 +16,8 @@ export type DeviceInput = z.infer<typeof deviceSchema>;
 
 const signInBase = {
   device: deviceSchema,
+  /** The admin panel: only an existing administrator gets a session, no account is created */
+  admin: z.boolean().optional(),
   /** Language for a new account; ignored for existing ones */
   language: languageSchema.optional(),
 };

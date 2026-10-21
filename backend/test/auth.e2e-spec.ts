@@ -1,3 +1,4 @@
+import { runInNewContext } from 'node:vm';
 import { createHash, randomUUID } from 'node:crypto';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -405,6 +406,26 @@ describe('Auth (e2e)', () => {
       expect(page.headers['content-security-policy']).toBe(
         `default-src 'none'; script-src 'sha256-${TELEGRAM_CALLBACK_SCRIPT_HASH}'`,
       );
+
+      // The script forwards to the app, or to the admin panel when it started there.
+      const forward = (search: string) => {
+        let target = '';
+        const location = {
+          search,
+          hash: '#tgAuthResult=abc',
+          replace: (to: string) => (target = to),
+        };
+        runInNewContext(script, { location, URLSearchParams });
+        return target;
+      };
+      expect(forward('')).toBe('lunex://auth/telegram#tgAuthResult=abc');
+      expect(forward('?to=admin')).toBe('/admin/#tgAuthResult=abc');
+      const admin = await http
+        .get('/v1/auth/telegram/start?to=admin')
+        .expect(302);
+      expect(
+        new URL(admin.headers.location).searchParams.get('return_to'),
+      ).toBe('https://api.lunex.test/v1/auth/telegram/callback?to=admin');
     });
 
     it('links and unlinks sign-in methods from settings', async () => {

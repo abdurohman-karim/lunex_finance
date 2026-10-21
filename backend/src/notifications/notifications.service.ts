@@ -85,6 +85,8 @@ export interface SmartSaveNotice {
   goal: { id: string; title: string; emoji: string };
 }
 
+const CURRENCY_CACHE_MS = 60_000;
+
 /** Pushes that went out, and those kept back only by the limit or quiet hours. */
 const inbox = (userId: string) => ({
   user_id: userId,
@@ -116,6 +118,7 @@ function toDto(row: Notifications): NotificationDto {
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
   private currencies?: Promise<Map<string, CurrencyInfo>>;
+  private currenciesLoadedAt = 0;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -460,9 +463,16 @@ export class NotificationsService {
   // ---------- Internals ----------
 
   async currency(code: string): Promise<CurrencyInfo> {
-    this.currencies ??= this.prisma.currencies
-      .findMany({ select: { code: true, decimals: true, symbol: true } })
-      .then((rows) => new Map(rows.map((row) => [row.code, row])));
+    // Reloaded now and then: an administrator may change a symbol in the panel.
+    if (
+      !this.currencies ||
+      Date.now() - this.currenciesLoadedAt > CURRENCY_CACHE_MS
+    ) {
+      this.currenciesLoadedAt = Date.now();
+      this.currencies = this.prisma.currencies
+        .findMany({ select: { code: true, decimals: true, symbol: true } })
+        .then((rows) => new Map(rows.map((row) => [row.code, row])));
+    }
     return (
       (await this.currencies).get(code) ?? { code, decimals: 2, symbol: code }
     );

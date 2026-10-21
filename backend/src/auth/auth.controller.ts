@@ -156,11 +156,14 @@ export class AuthController {
 
   private async signIn(
     credential: LinkIdentityInput,
-    body: Pick<SignInBody, 'device' | 'language'>,
+    body: Pick<SignInBody, 'device' | 'language' | 'admin'>,
     ip: string,
   ) {
     await this.rateLimiter.consume(`auth:ip:${ip}`, SIGN_IN_PER_IP, 10 * 60);
     const identity = await this.identities.verify(credential);
+    if (body.admin) {
+      return toResponse(await this.users.signInAdmin(identity, body.device));
+    }
     return toResponse(
       await this.users.signIn(identity, body.device, body.language),
     );
