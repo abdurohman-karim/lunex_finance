@@ -57,7 +57,7 @@ describe('Receipts and attachments (e2e)', () => {
   const userIds: string[] = [];
 
   async function user() {
-    const session = await signUp(http, 'ru');
+    const session = await signUp(http, 'ru', { ai: true });
     userIds.push(session.userId);
     return session;
   }
@@ -330,7 +330,7 @@ describe('Receipts and attachments (e2e)', () => {
   });
 
   it('deletes the photos with the account', async () => {
-    const session = await signUp(http, 'ru');
+    const session = await signUp(http, 'ru', { ai: true });
     const transaction = await expense(session);
     await upload(session, randomUUID(), transaction).expect(200);
     await app.get(UsersService).purgeUser(session.userId);

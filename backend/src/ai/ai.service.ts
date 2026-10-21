@@ -1,8 +1,10 @@
 import {
   BadGatewayException,
+  ForbiddenException,
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service.js';
 import type { AiFeature } from '../generated/prisma/enums.js';
 import { AiUsageService, type TokenUsage } from './ai-usage.service.js';
 import {
@@ -13,15 +15,17 @@ import {
 } from './claude.client.js';
 
 /**
- * Every call to the model goes through here: Pro and the day's limit first, then Claude,
- * then the tokens into `ai_usage_daily`. A failed call is not counted, and the app gets
- * `ai_unavailable` (503, AI is off) or `ai_failed` (502, «Повторить»).
+ * Every call to the model goes through here: the user's permission to send their data to
+ * Claude first (App Store guideline 5.1.2(i), `ai_consent_required`), then Pro and the day's
+ * limit, then Claude, then the tokens into `ai_usage_daily`. A failed call is not counted,
+ * and the app gets `ai_unavailable` (503, AI is off) or `ai_failed` (502, «Повторить»).
  */
 @Injectable()
 export class AiService {
   constructor(
     private readonly usage: AiUsageService,
     private readonly claude: ClaudeClient,
+    private readonly prisma: PrismaService,
   ) {}
 
   get available(): boolean {
@@ -50,6 +54,12 @@ export class AiService {
     now = new Date(),
   ): Promise<T> {
     if (!this.claude.available) throw this.unavailable();
+    if (!(await this.consented(userId))) {
+      throw new ForbiddenException({
+        code: 'ai_consent_required',
+        message: 'The user has not allowed sending their data to Claude',
+      });
+    }
     try {
       const { result } = await this.usage.run(
         userId,
@@ -78,6 +88,15 @@ export class AiService {
       }
       throw error;
     }
+  }
+
+  /** Given on the app's «AI в Lunex» sheet or in Settings → AI; nothing goes to Claude before it. */
+  async consented(userId: string): Promise<boolean> {
+    const settings = await this.prisma.userSettings.findUnique({
+      where: { user_id: userId },
+      select: { ai_consent_at: true },
+    });
+    return settings?.ai_consent_at != null;
   }
 
   private unavailable() {

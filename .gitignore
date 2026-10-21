@@ -6,3 +6,7 @@ __pycache__/
 .venv/
 venv/
 .env
+
+# The built site (site/build.py)
+site/public/
+.DS_Store

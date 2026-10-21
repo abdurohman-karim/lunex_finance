@@ -58,6 +58,9 @@ export interface SettingsDto {
   quietHoursStart: string;
   quietHoursEnd: string;
   hapticsEnabled: boolean;
+  /** The user allowed sending their data to Claude (Anthropic) for the AI features */
+  aiConsent: boolean;
+  aiConsentAt: Date | null;
   updatedAt: Date;
 }
 
@@ -100,6 +103,8 @@ function settingsToDto(row: SettingsRow): SettingsDto {
     quietHoursStart: fromDbTime(row.quiet_hours_start),
     quietHoursEnd: fromDbTime(row.quiet_hours_end),
     hapticsEnabled: row.haptics_enabled,
+    aiConsent: row.ai_consent_at !== null,
+    aiConsentAt: row.ai_consent_at,
     updatedAt: row.updated_at,
   };
 }
@@ -305,7 +310,7 @@ export class ProfileService {
     userId: string,
     patch: UpdateSettingsInput,
   ): Promise<SettingsDto> {
-    await this.settings(userId);
+    const current = await this.settings(userId);
     if (patch.defaultAccountId) {
       // Validates the account and touches both accounts for sync.
       await this.accounts.update(userId, patch.defaultAccountId, {
@@ -332,6 +337,13 @@ export class ProfileService {
         quiet_hours_start: time(patch.quietHoursStart),
         quiet_hours_end: time(patch.quietHoursEnd),
         haptics_enabled: patch.hapticsEnabled,
+        // Given once, kept with its first moment; taken back, forgotten.
+        ai_consent_at:
+          patch.aiConsent === undefined
+            ? undefined
+            : patch.aiConsent
+              ? (current.aiConsentAt ?? new Date())
+              : null,
       },
     });
     return this.settings(userId);

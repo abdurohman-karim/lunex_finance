@@ -22,7 +22,7 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev && prisma generate",
+    "db:migrate": "sh -c 'prisma migrate dev \"$@\" && prisma generate' --",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "admin:role": "tsx scripts/admin-role.ts",

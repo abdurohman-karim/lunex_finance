@@ -14,10 +14,14 @@ export interface TestSession {
   refreshToken: string;
 }
 
-/** A fresh account through Telegram sign-in, the shortest flow without email. */
+/**
+ * A fresh account through Telegram sign-in, the shortest flow without email. `ai` gives the
+ * permission to send the user's data to Claude, as the app asks before its AI features.
+ */
 export async function signUp(
   http: ReturnType<typeof request>,
   language: 'uz' | 'ru' | 'en' = 'ru',
+  options: { ai?: boolean } = {},
 ): Promise<TestSession> {
   const data = {
     id: Math.floor(Math.random() * 1e12) + 1,
@@ -32,11 +36,19 @@ export async function signUp(
       language,
     })
     .expect(200);
-  return {
-    userId: res.body.user.id,
+  const session = {
+    userId: res.body.user.id as string,
     auth: { Authorization: `Bearer ${res.body.accessToken}` },
-    refreshToken: res.body.refreshToken,
+    refreshToken: res.body.refreshToken as string,
   };
+  if (options.ai) {
+    await http
+      .patch('/v1/me/settings')
+      .set(session.auth)
+      .send({ aiConsent: true })
+      .expect(200);
+  }
+  return session;
 }
 
 /** Rate-limit windows persist in Redis between runs; each test file starts clean. */

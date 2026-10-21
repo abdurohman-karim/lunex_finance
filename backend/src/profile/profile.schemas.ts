@@ -66,6 +66,8 @@ export const updateSettingsSchema = z
     quietHoursStart: clockTimeSchema,
     quietHoursEnd: clockTimeSchema,
     hapticsEnabled: z.boolean(),
+    /** Sending the user's data to Claude (Anthropic) for the AI features is allowed */
+    aiConsent: z.boolean(),
   })
   .partial()
   .refine((patch) => Object.keys(patch).length > 0, 'Nothing to update');

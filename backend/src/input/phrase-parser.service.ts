@@ -92,8 +92,13 @@ export class PhraseParserService {
         );
         if (operations.length > 0) return { text, source: 'ai', operations };
       } catch (error) {
-        // Pro was checked above; anything else (limit, failure) falls back to the rules.
-        if (error instanceof HttpException && error.getStatus() === 403) {
+        // Pro was checked above; anything else (no permission to use Claude, the limit, a
+        // failure) falls back to the rules.
+        if (
+          error instanceof HttpException &&
+          error.getStatus() === 403 &&
+          !isConsentMissing(error)
+        ) {
           throw error;
         }
         this.logger.warn(`Phrase read by rules: ${(error as Error).message}`);
@@ -195,4 +200,12 @@ export class PhraseParserService {
       })
       .slice(0, MAX_OPERATIONS);
   }
+}
+
+function isConsentMissing(error: HttpException): boolean {
+  const body = error.getResponse();
+  return (
+    typeof body === 'object' &&
+    (body as { code?: string }).code === 'ai_consent_required'
+  );
 }

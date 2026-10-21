@@ -83,7 +83,7 @@ describe('AI usage and limits (e2e)', () => {
 
   /** Free: monetization on and the trial over. */
   async function freeUser() {
-    const session = await signUp(http, 'ru');
+    const session = await signUp(http, 'ru', { ai: true });
     userIds.push(session.userId);
     await prisma.subscriptions.updateMany({
       where: { user_id: session.userId },
@@ -93,7 +93,7 @@ describe('AI usage and limits (e2e)', () => {
   }
 
   async function newUser() {
-    const session = await signUp(http, 'ru');
+    const session = await signUp(http, 'ru', { ai: true });
     userIds.push(session.userId);
     return session;
   }
@@ -231,5 +231,68 @@ describe('AI usage and limits (e2e)', () => {
     expect(await rows(session)).toEqual([
       expect.objectContaining({ feature: 'insight', requests: 3 }),
     ]);
+  });
+
+  it('sends nothing to Claude before the user allows it, and forgets when they take it back', async () => {
+    const session = await signUp(http, 'ru');
+    userIds.push(session.userId);
+    const settings = await http
+      .get('/v1/me/settings')
+      .set(session.auth)
+      .expect(200);
+    expect(settings.body).toMatchObject({
+      aiConsent: false,
+      aiConsentAt: null,
+    });
+    const before = claude.calls;
+
+    await expect(ask(session)).rejects.toMatchObject({
+      response: { code: 'ai_consent_required' },
+    });
+    const refused = await http
+      .post('/v1/assistant/messages')
+      .set(session.auth)
+      .send({
+        conversationId: crypto.randomUUID(),
+        messageId: crypto.randomUUID(),
+        text: 'Сколько я потратил?',
+      })
+      .expect(403);
+    expect(refused.body).toMatchObject({ code: 'ai_consent_required' });
+    // Phrases are still read, by the server's own rules.
+    const parsed = await http
+      .post('/v1/ai/parse')
+      .set(session.auth)
+      .send({ text: 'кофе 25 тысяч' })
+      .expect(200);
+    expect(parsed.body.source).toBe('rules');
+    expect(claude.calls).toBe(before);
+    expect(await rows(session)).toEqual([]);
+
+    const allowed = await http
+      .patch('/v1/me/settings')
+      .set(session.auth)
+      .send({ aiConsent: true })
+      .expect(200);
+    expect(allowed.body.aiConsent).toBe(true);
+    // Allowed again: the first moment stays.
+    const again = await http
+      .patch('/v1/me/settings')
+      .set(session.auth)
+      .send({ aiConsent: true })
+      .expect(200);
+    expect(again.body.aiConsentAt).toBe(allowed.body.aiConsentAt);
+    await ask(session);
+    expect(claude.calls).toBe(before + 1);
+
+    const revoked = await http
+      .patch('/v1/me/settings')
+      .set(session.auth)
+      .send({ aiConsent: false })
+      .expect(200);
+    expect(revoked.body).toMatchObject({ aiConsent: false, aiConsentAt: null });
+    await expect(ask(session)).rejects.toMatchObject({
+      response: { code: 'ai_consent_required' },
+    });
   });
 });

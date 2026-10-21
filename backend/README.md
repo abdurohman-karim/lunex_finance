@@ -53,7 +53,7 @@ With `EMAIL_PROVIDER=console` the email login code is printed to the server log.
 | `POST /v1/me/onboarding` | `{ cashAccountId, language?, baseCurrency?, timezone?, focus?, monthlyIncomeEstimate?, firstGoal? }` → `{ profile, account, goal, checklist }`; every step optional, safe to repeat |
 | `GET /v1/me/checklist` | «Первые шаги»: `firstTransaction`, `firstGoal`, `budget`, `completed` (the widget item is tracked by the app) |
 | `PATCH /v1/me` | `displayName`, `language`, `baseCurrency`, `timezone` (IANA), `monthlyIncomeEstimate`, `onboardingFocus` |
-| `GET` / `PATCH /v1/me/settings` | lock and `lockAfterSeconds`, `hideAmounts`, `weekStartsOn`, `monthStartsOnDay`, `defaultAccountId`, reminder time, quiet hours (`HH:MM`), notification toggles, haptics |
+| `GET` / `PATCH /v1/me/settings` | lock and `lockAfterSeconds`, `hideAmounts`, `weekStartsOn`, `monthStartsOnDay`, `defaultAccountId`, reminder time, quiet hours (`HH:MM`), notification toggles, haptics, `aiConsent` (with `aiConsentAt` in the answer) |
 | `PUT /v1/me/devices/current` | `{ apnsToken?, pushEnabled?, model?, osVersion?, appVersion? }` for the calling device |
 
 - Onboarding creates the cash account («Naqd pul» / «Наличные» / «Cash» in the base currency) unless accounts already came from another device, then the first goal, then marks onboarding done.
@@ -185,12 +185,13 @@ Rules (Lunex Pro) that move money into a goal by themselves, from a source accou
 
 ## AI usage and limits
 
-Every call to Claude goes through `AiService.ask(userId, feature, request)` (`src/ai`): Pro features first, then one of the day's requests, then the model (`claude-sonnet-5-5` for the assistant and reports, `claude-haiku-5-5` for parsing input and receipts; `ANTHROPIC_API_KEY`, `CLAUDE_MODEL_SMART|FAST`), then its tokens.
+Every call to Claude goes through `AiService.ask(userId, feature, request)` (`src/ai`): the user's permission first, then Pro features, then one of the day's requests, then the model (`claude-sonnet-5-5` for the assistant and reports, `claude-haiku-5-5` for parsing input and receipts; `ANTHROPIC_API_KEY`, `CLAUDE_MODEL_SMART|FAST`), then its tokens.
 
 | Endpoint | |
 | --- | --- |
 | `GET /v1/ai/usage` | `{ available, date, resetsAt, features: [{ feature, used, limit, remaining }] }` for `assistant`, `parse_input`, `receipt`, `insight` |
 
+- **Permission** (App Store guideline 5.1.2(i)): nothing of a user goes to Claude until they allow it — `aiConsent: true` in settings (the app asks on its «AI в Lunex» sheet before the first AI feature, and Settings → AI turns it off). The server keeps when it was first given (`user_settings.ai_consent_at`, kept on a repeat, cleared on withdrawal). Without it the assistant and receipts answer 403 `ai_consent_required`, phrases are read by the rules and insights by the templates, exactly as without a key.
 - `ai_usage_daily` holds requests and input/output tokens per user, day (the user's time zone, reset at their midnight) and feature; cached input counts as input.
 - Limits a day: the assistant `ai_daily_limit_free` (5) / `ai_daily_limit_pro` (50) by plan; voice/text parsing `ai_daily_limit_parse` (100) and receipts `ai_daily_limit_receipt` (30) as fair-use caps, both Lunex Pro (`voice_input`, `receipt_scan`); insights the server makes itself, none. Administrators change them in `app_settings`.
 - A request takes its place before the model is called, in one statement (`INSERT … ON CONFLICT … WHERE requests < limit`), so parallel requests cannot pass the limit; a full day answers 429 `ai_limit_reached` with `limit` and `resetsAt`. A failed call gives its place back: 502 `ai_failed` (the model did not answer after the SDK's retries) or 503 `ai_unavailable` (no key).
@@ -355,6 +356,16 @@ npm run test:e2e    # needs compose services; uses its own database lunex_e2e (c
 ## Production
 
 `npm run start:prod` runs `node --import ./dist/instrument.js dist/main` so Sentry instruments ESM modules. Sentry is off unless `SENTRY_DSN` is set; request bodies, cookies, DB query data and AI prompts are never sent.
+
+## Site
+
+`lunex.my` — the home page, the privacy policy (`/<language>/privacy/`) and support (`/<language>/support/`) in Uzbek, Russian and English, which App Store Connect links to. `site/build.py` writes the static pages into `site/public/` (not committed) from the texts in it; `/`, `/privacy/` and `/support/` pick the language of the browser. The policy names what is collected, Claude (Anthropic) behind the permission, the processors and the countries, the 30 days after deletion and the export. Support mail goes to the mailbox `support@lunex.my` on the server (Hestia, domain `lunex.my` of the `lunex` user). From the repository root:
+
+```bash
+deploy/site.sh
+```
+
+It builds the pages, copies them into `/home/lunex/web/lunex.my/public_html` over SSH (the same key), gives them to the `lunex` user and checks `https://lunex.my/ru/privacy/`. A change of the policy changes `UPDATED` in `site/build.py`.
 
 ## Deploy
 

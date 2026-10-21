@@ -54,7 +54,7 @@ describe('Voice and text input (e2e)', () => {
   const today = () => localDate(new Date(), 'Asia/Tashkent');
 
   async function user() {
-    const session = await signUp(http, 'ru');
+    const session = await signUp(http, 'ru', { ai: true });
     userIds.push(session.userId);
     return session;
   }

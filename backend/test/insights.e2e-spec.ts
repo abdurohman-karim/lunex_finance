@@ -55,7 +55,7 @@ describe('Insights (e2e)', () => {
   const userIds: string[] = [];
 
   async function setup() {
-    const session = await signUp(http, 'ru');
+    const session = await signUp(http, 'ru', { ai: true });
     userIds.push(session.userId);
     await prisma.users.update({
       where: { id: session.userId },

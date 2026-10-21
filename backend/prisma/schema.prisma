@@ -410,6 +410,8 @@ model UserSettings {
   quiet_hours_start        DateTime @default(dbgenerated("'22:00:00'::time without time zone")) @db.Time()
   quiet_hours_end          DateTime @default(dbgenerated("'08:00:00'::time without time zone")) @db.Time()
   haptics_enabled          Boolean  @default(true)
+  /// Когда пользователь разрешил передавать свои данные в Claude (Anthropic) для AI-функций; null — не разрешал или отозвал
+  ai_consent_at            DateTime?
   updated_at               DateTime @default(now()) @updatedAt
 
   user           Users     @relation(fields: [user_id], references: [id])

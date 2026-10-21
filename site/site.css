@@ -1,0 +1,188 @@
+/* lunex.my: the app's monochrome design — graphite text, ink actions, the system font. */
+:root {
+  --paper: #f4f4f5;
+  --surface: #ffffff;
+  --line: #e0dfe3;
+  --ink: #141416;
+  --muted: #5d5c61;
+  --on-ink: #ffffff;
+  --steel: #557a95;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0e0e10;
+    --surface: #18181b;
+    --line: #2e2e33;
+    --ink: #f2f2f4;
+    --muted: #a09fa6;
+    --on-ink: #141416;
+    --steel: #7fa2be;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+header,
+main,
+footer {
+  width: min(720px, 100% - 32px);
+  margin: 0 auto;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 28px 0 8px;
+}
+
+.brand {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 15px;
+}
+
+nav a:hover,
+nav a[aria-current="page"] {
+  color: var(--ink);
+}
+
+main {
+  padding: 24px 0 48px;
+}
+
+h1 {
+  font-size: clamp(30px, 6vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  margin: 16px 0 12px;
+}
+
+h2 {
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+}
+
+section {
+  background: var(--surface);
+  border-radius: 22px;
+  padding: 20px 22px;
+  margin: 14px 0;
+}
+
+section p,
+section ul {
+  margin: 8px 0 0;
+}
+
+ul {
+  padding-left: 20px;
+}
+
+li {
+  margin: 6px 0;
+}
+
+a {
+  color: var(--ink);
+  text-underline-offset: 3px;
+}
+
+.lead {
+  font-size: 21px;
+  color: var(--muted);
+  margin: 0 0 24px;
+}
+
+.points {
+  list-style: none;
+  padding: 0;
+}
+
+.points li {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 14px 18px;
+}
+
+.updated,
+.soon {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.button {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--on-ink);
+  border-radius: 999px;
+  padding: 12px 22px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.languages {
+  list-style: none;
+  padding: 0;
+  font-size: 20px;
+}
+
+footer {
+  border-top: 1px solid var(--line);
+  padding: 20px 0 40px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+footer p {
+  margin: 10px 0 0;
+}
+
+footer a {
+  color: var(--muted);
+}
+
+@media (max-width: 520px) {
+  body {
+    font-size: 16px;
+  }
+
+  section {
+    padding: 16px 18px;
+  }
+}
